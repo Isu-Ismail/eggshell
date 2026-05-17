@@ -29,6 +29,8 @@ const resolveSourceColumn = (nodeId, handleId, state) => {
       expression = `LOWER(${parentSource.expression})`;
     } else if (type === 'TRIM') {
       expression = `TRIM(${parentSource.expression})`;
+    } else if (type === 'SERIAL_NO') {
+      expression = `ROW_NUMBER() OVER()`;
     } else if (type === 'CUSTOM') {
       const script = sourceNode.data.script || '{col}';
       expression = script.replace(/{col}/g, parentSource.expression);

@@ -286,8 +286,17 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
                   <option value="UPPER">UPPERCASE (AA)</option>
                   <option value="LOWER">lowercase (aa)</option>
                   <option value="TRIM">TRIM (Auto)</option>
+                  <option value="SERIAL_NO">Serial Number (1, 2, 3...)</option>
                   <option value="CUSTOM">Custom Script</option>
                 </select>
+
+                {localType === 'SERIAL_NO' && (
+                  <div className={styles.scriptGroup}>
+                    <span className={styles.hint} style={{ color: '#10b981', fontWeight: 700 }}>
+                      ⚡ Auto Generator Enabled: This block will automatically calculate and output a sequential row number (1, 2, 3...) for every record in your output spreadsheet!
+                    </span>
+                  </div>
+                )}
 
                 {localType === 'CUSTOM' && (
                   <div className={styles.scriptGroup}>

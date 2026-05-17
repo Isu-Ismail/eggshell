@@ -64,7 +64,7 @@ export default function WhyChooseModal({ isOpen, onClose }) {
                   <Sparkles size={16} style={{ color: '#ec4899' }} />
                   <div>
                     <strong>Transform Block</strong>
-                    <span>Apply dynamic string modifications like UPPERCASE, lowercase, trim whitespace, or custom operations with SQL syntax (e.g. <code>{"REPLACE({col}, 'Enginering', 'Engineering')"}</code>)</span>
+                    <span>Apply dynamic string modifications like UPPERCASE, lowercase, trim whitespace, automatic sequential Serial Numbers (1, 2, 3...), or custom SQL syntax (e.g. <code>{"REPLACE({col}, 'Enginering', 'Engineering')"}</code>).</span>
                   </div>
                 </div>
 
