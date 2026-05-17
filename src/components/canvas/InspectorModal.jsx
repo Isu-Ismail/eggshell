@@ -77,9 +77,9 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
       setLocalType(activeNode.data.type || 'UPPER');
       setLocalScript(activeNode.data.script || '');
       setLocalCondition(activeNode.data.condition || '');
-      setLocalNewColumnName(activeNode.data.newColumnName || 'amount');
-      setLocalRules(activeNode.data.rules || [{ operator: '=', value: 'paid', thenVal: '1000' }]);
-      setLocalElseVal(activeNode.data.elseVal || '0');
+      setLocalNewColumnName(activeNode.data.newColumnName || 'output_col');
+      setLocalRules(activeNode.data.rules || [{ operator: '=', value: 'value', thenVal: 'result' }]);
+      setLocalElseVal(activeNode.data.elseVal || 'default');
     }
   }, [nodeId, nodes]);
 
@@ -166,13 +166,13 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
       setLocalScript('');
       setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { type: 'UPPER', script: '' } } : n));
     } else if (node.type === 'filterNode') {
-      setLocalCondition("{col} = '1st Year'");
-      setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { condition: "{col} = '1st Year'" } } : n));
+      setLocalCondition("{col} = 'value'");
+      setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { condition: "{col} = 'value'" } } : n));
     } else if (node.type === 'conditionNode') {
-      setLocalNewColumnName('amount');
-      setLocalRules([{ operator: '=', value: 'paid', thenVal: '1000' }]);
-      setLocalElseVal('0');
-      setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { newColumnName: 'amount', rules: [{ operator: '=', value: 'paid', thenVal: '1000' }], elseVal: '0' } } : n));
+      setLocalNewColumnName('output_col');
+      setLocalRules([{ operator: '=', value: 'value', thenVal: 'result' }]);
+      setLocalElseVal('default');
+      setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { newColumnName: 'output_col', rules: [{ operator: '=', value: 'value', thenVal: 'result' }], elseVal: 'default' } } : n));
     }
   };
 
@@ -314,9 +314,9 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
                   className={styles.input} 
                   value={localCondition || ''} 
                   onChange={handleConditionChange}
-                  placeholder="e.g. {col} = '1st Year'"
+                  placeholder="e.g. {col} = 'value'"
                 />
-                <span className={styles.hint}>Use <code>{`{col}`}</code> to reference mapped column values. e.g. <code>{`{col} = '1st Year'`}</code> or <code>{`{col} > 18`}</code>.</span>
+                <span className={styles.hint}>Use <code>{`{col}`}</code> to reference mapped column values. e.g. <code>{`{col} = 'value'`}</code> or <code>{`{col} > 18`}</code>.</span>
               </div>
             )}
 

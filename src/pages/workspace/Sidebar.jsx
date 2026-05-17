@@ -6,7 +6,7 @@ import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCirc
 import { ConfirmModal, AlertModal } from '../../components/ui/Modal';
 import styles from './Sidebar.module.css';
 
-export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpenAiModal }) {
+export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpenAiModal, onOpenWhyChoose }) {
   const fileInputRef = useRef(null);
   const outputTemplateRef = useRef(null);
   
@@ -116,7 +116,18 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
     <div className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
   <div className={styles.headerRow}>
     <div className={styles.brandingGroup}>
-      <h2 className={styles.title}>Melder</h2>
+      <div className={styles.brandBox} onClick={onOpenWhyChoose} title="Click to view why Melder is better than Excel">
+        <h2 className={styles.title}>Melder</h2>
+        {!isCollapsed && (
+          <button 
+            className={styles.brandHelpBtn} 
+            onClick={(e) => { e.stopPropagation(); onOpenWhyChoose(); }}
+            title="Why Choose Melder?"
+          >
+            <HelpCircle size={12} />
+          </button>
+        )}
+      </div>
       {!isCollapsed && (
         <p className={styles.subtitle}>Stitch, transform, and merge datasets seamlessly</p>
       )}
@@ -192,7 +203,7 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
               </button>
               <button 
                 onClick={() => { addFilterNode(); setIsOpMenuOpen(false); }}
-                title="Visual SQL Filter Node (e.g. {col} = '1st Year')"
+                title="Visual SQL Filter Node (e.g. {col} = 'value')"
               >
                 <Filter size={14} /> Filter Block
               </button>

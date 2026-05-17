@@ -261,7 +261,7 @@ export const ProjectProvider = ({ children }) => {
       id,
       type: 'filterNode',
       position: { x: 450, y: 160 + (currentFilters.length * 110) },
-      data: { condition: "{col} = '1st Year'" }
+      data: { condition: "{col} = 'value'" }
     };
     setNodes(prev => [...prev, newNode]);
   }, [nodes]);
@@ -285,7 +285,7 @@ export const ProjectProvider = ({ children }) => {
       id,
       type: 'conditionNode',
       position: { x: 450, y: 180 + (currentConditions.length * 110) },
-      data: { newColumnName: 'amount', rules: [{ operator: '=', value: 'paid', thenVal: '1000' }], elseVal: '0' }
+      data: { newColumnName: 'output_col', rules: [{ operator: '=', value: 'value', thenVal: 'result' }], elseVal: 'default' }
     };
     setNodes(prev => [...prev, newNode]);
   }, [nodes]);
