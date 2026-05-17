@@ -1,6 +1,6 @@
   {
     "inputs": {
-      "students_large_1000": "example_club_data_1000.csv"
+      "students_large_1000": "example_club_data_10000.csv"
     },
     "outputs": [
       {
