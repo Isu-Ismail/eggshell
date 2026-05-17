@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback } from 'react';
 import { addEdge, applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import { deleteConnectionPath as engineDeleteConnectionPath, duplicateOutputNode as engineDuplicateOutputNode, autoArrangeCanvas as engineAutoArrangeCanvas } from './canvasEngine';
-import { exportPipelineConfig as engineExportPipelineConfig, applyJsonConfig as engineApplyJsonConfig } from './configCompiler';
+import { exportPipelineConfig as engineExportPipelineConfig, exportFullPipelineConfig as engineExportFullPipelineConfig, applyJsonConfig as engineApplyJsonConfig } from './configCompiler';
 
 const ProjectContext = createContext();
 
@@ -385,6 +385,10 @@ export const ProjectProvider = ({ children }) => {
     return engineExportPipelineConfig(outputNodeId, nodes, edges);
   }, [nodes, edges]);
 
+  const exportFullPipelineConfig = useCallback(() => {
+    return engineExportFullPipelineConfig(nodes, edges);
+  }, [nodes, edges]);
+
   const applyJsonConfig = useCallback((configString) => {
     return engineApplyJsonConfig(configString, nodes, setNodes, setEdges, files);
   }, [nodes, files]);
@@ -415,7 +419,7 @@ export const ProjectProvider = ({ children }) => {
       drawingWire, setDrawingWire, cursorPos, setCursorPos,
       startDrawingWire, addWaypointToDrawingWire, completeDrawingWire, cancelDrawingWire,
       deleteConnectionPath, addOutputNodeFromTemplate, duplicateOutputNode, copyColumnsFromSource,
-      hiddenOutputs, toggleOutputVisibility, exportPipelineConfig, autoArrangeCanvas
+      hiddenOutputs, toggleOutputVisibility, exportPipelineConfig, exportFullPipelineConfig, autoArrangeCanvas
     }}>
       {children}
     </ProjectContext.Provider>

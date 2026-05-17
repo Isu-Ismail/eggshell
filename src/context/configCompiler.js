@@ -1,4 +1,138 @@
-// Declarative JSON script pipeline configuration compilers and schema mapping parser engines
+// 1. Compile the ENTIRE active canvas pipeline (multiple inputs and multiple outputs) into a clean, file-agnostic JSON configuration
+export const exportFullPipelineConfig = (nodes, edges) => {
+  const sourceNodes = nodes.filter(n => n.type === 'sourceNode');
+  const outputNodes = nodes.filter(n => n.type === 'outputNode');
+
+  // Build inputs mapping (aliases -> uploaded File Names)
+  const inputsMap = {};
+  const fileIdToAlias = {};
+  let idx = 1;
+  
+  sourceNodes.forEach(node => {
+    const fileName = node.data?.fileName || `${node.id}.xlsx`;
+    // Clean name to make alias e.g. "students" instead of "input_1"
+    let alias = fileName.replace(/\.[^/.]+$/, ""); // strip extension
+    alias = alias.replace(/^file\d+[-_]/i, ""); // strip standard prefix e.g. file3_
+    alias = alias.toLowerCase().replace(/[\s-]+/g, "_").replace(/[^a-z0-9_]/g, "");
+    if (!alias) alias = `input_${idx++}`;
+    
+    // Ensure uniqueness
+    let uniqueAlias = alias;
+    let duplicateIdx = 1;
+    while (inputsMap[uniqueAlias]) {
+      uniqueAlias = `${alias}_${duplicateIdx++}`;
+    }
+    
+    inputsMap[uniqueAlias] = fileName;
+    fileIdToAlias[node.id] = uniqueAlias;
+  });
+
+  const resolveKeyPath = (srcId, srcHandle) => {
+    const srcNode = nodes.find(n => n.id === srcId);
+    if (!srcNode) return '';
+    if (srcNode.type === 'sourceNode') {
+      const alias = fileIdToAlias[srcNode.id] || srcNode.id;
+      return `${alias}.${srcHandle}`;
+    }
+    const incoming = edges.find(e => e.target === srcId);
+    if (incoming) return resolveKeyPath(incoming.source, incoming.sourceHandle);
+    return '';
+  };
+
+  const outputsConfig = [];
+
+  outputNodes.forEach(outputNode => {
+    const columnsConfig = [];
+
+    (outputNode.data.columns || []).forEach(col => {
+      const colConfig = { name: col.name };
+      const incomingEdge = edges.find(e => e.target === outputNode.id && e.targetHandle === col.id);
+
+      if (incomingEdge) {
+        let source = null;
+        let transforms = [];
+        let filter = null;
+        let join = null;
+
+        const traceBack = (nodeId, incomingHandleId) => {
+          const node = nodes.find(n => n.id === nodeId);
+          if (!node) return;
+
+          if (node.type === 'sourceNode') {
+            const alias = fileIdToAlias[node.id] || node.id;
+            source = `${alias}.${incomingHandleId}`;
+            return;
+          }
+
+          if (node.type === 'transformNode') {
+            transforms.unshift(node.data.type || 'UPPER');
+          }
+
+          if (node.type === 'conditionNode') {
+            transforms.unshift({
+              type: 'CONDITIONAL',
+              new_column: node.data.newColumnName || 'amount',
+              rules: node.data.rules || [],
+              else_val: node.data.elseVal || '0'
+            });
+          }
+
+          if (node.type === 'filterNode') {
+            filter = node.data.condition || '';
+          }
+
+          if (node.type === 'joinNode') {
+            const baseEdge = edges.find(e => e.target === node.id && e.targetHandle === 'base');
+            const matchEdge = edges.find(e => e.target === node.id && e.targetHandle === 'match');
+            
+            let baseKey = '';
+            let matchKey = '';
+
+            if (baseEdge) baseKey = resolveKeyPath(baseEdge.source, baseEdge.sourceHandle);
+            if (matchEdge) matchKey = resolveKeyPath(matchEdge.source, matchEdge.sourceHandle);
+
+            join = {
+              base_key: baseKey,
+              match_key: matchKey
+            };
+          }
+
+          // Continue tracing upstream
+          if (node.type === 'joinNode') {
+            const baseEdge = edges.find(e => e.target === nodeId && e.targetHandle === 'base');
+            if (baseEdge) {
+              traceBack(baseEdge.source, baseEdge.sourceHandle);
+            }
+          } else {
+            const incoming = edges.find(e => e.target === nodeId);
+            if (incoming) {
+              traceBack(incoming.source, incoming.sourceHandle);
+            }
+          }
+        };
+
+        traceBack(incomingEdge.source, incomingEdge.sourceHandle);
+
+        if (source) colConfig.source = source;
+        if (transforms.length > 0) colConfig.transforms = transforms;
+        if (filter) colConfig.filter = filter;
+        if (join) colConfig.join = join;
+      }
+
+      columnsConfig.push(colConfig);
+    });
+
+    outputsConfig.push({
+      output_name: outputNode.data.name || 'Stitched Output',
+      columns: columnsConfig
+    });
+  });
+
+  return JSON.stringify({
+    inputs: inputsMap,
+    outputs: outputsConfig
+  }, null, 2);
+};
 
 // 1. Compile the active canvas pipeline into a file-agnostic configuration JSON with input aliases
 export const exportPipelineConfig = (outputNodeId, nodes, edges) => {

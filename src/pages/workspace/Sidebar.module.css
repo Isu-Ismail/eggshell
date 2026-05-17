@@ -591,3 +591,36 @@
   transform: translate(2px, 2px);
   box-shadow: 2px 2px 0px #111827;
 }
+
+.exportFullBtn {
+  background: #06b6d4; /* Premium Cyan */
+  border: 3px solid #111827;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 12px;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 3px 3px 0px #111827;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.exportFullBtn:hover {
+  background: #0891b2;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #111827;
+}
+
+.exportFullBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px #111827;
+}

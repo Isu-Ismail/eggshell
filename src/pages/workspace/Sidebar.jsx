@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { importFileToDB } from '../../services/importService';
 import { useProject } from '../../context/ProjectContext';
 import { useSqlite } from '../../hooks/useSqlite';
-import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCircle, Sparkles, Filter, Link2, BrainCircuit, Eye, EyeOff, ListChecks } from 'lucide-react';
+import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCircle, Sparkles, Filter, Link2, BrainCircuit, Eye, EyeOff, ListChecks, Download } from 'lucide-react';
 import { ConfirmModal, AlertModal } from '../../components/ui/Modal';
 import styles from './Sidebar.module.css';
 
@@ -13,7 +13,8 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
   const { 
     addFile, files, removeFile, clearAllFiles, 
     addOutputNode, addTransformNode, addFilterNode, addJoinNode, addConditionNode,
-    nodes, addFileToCanvas, removeFileFromCanvas, addOutputNodeFromTemplate
+    nodes, edges, addFileToCanvas, removeFileFromCanvas, addOutputNodeFromTemplate,
+    exportFullPipelineConfig
   } = useProject();
   const { isReady, execute } = useSqlite();
   const [loading, setLoading] = useState(false);
@@ -176,6 +177,26 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
 
         <button className={styles.aiBtn} onClick={onOpenAiModal} title="Configure visual pipeline using AI Scripting Prompt JSON configs">
           <BrainCircuit size={18} /> AI Scripting Panel
+        </button>
+
+        <button 
+          className={styles.exportFullBtn} 
+          onClick={() => {
+            const configStr = exportFullPipelineConfig();
+            if (!configStr) return;
+            const blob = new Blob([configStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `stitcher_full_pipeline_config.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }} 
+          title="Download entire canvas pipeline configuration (multiple sheets & outputs)"
+        >
+          <Download size={18} /> Export Pipeline JSON
         </button>
 
         <div className={styles.opBtnContainer} ref={dropdownRef}>
