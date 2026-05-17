@@ -1,0 +1,272 @@
+  {
+    "inputs": {
+      "students_large_1000": "example_club_data_1000.csv"
+    },
+    "outputs": [
+      {
+        "output_name": "year1_all_teams",
+        "columns": [
+          {
+            "name": "Name",
+            "source": "students_large_1000.name"
+          },
+          {
+            "name": "Mobile Number",
+            "source": "students_large_1000.mobile_number"
+          },
+          {
+            "name": "Year",
+            "source": "students_large_1000.year",
+            "filter": "{col} = '1st Year'"
+          },
+          {
+            "name": "Roll Number",
+            "source": "students_large_1000.roll_number"
+          },
+          {
+            "name": "Team",
+            "source": "students_large_1000.team"
+          },
+          {
+            "name": "Position",
+            "source": "students_large_1000.position"
+          }
+        ]
+      },
+      {
+        "output_name": "year2_all_teams",
+        "columns": [
+          {
+            "name": "Name",
+            "source": "students_large_1000.name"
+          },
+          {
+            "name": "Mobile Number",
+            "source": "students_large_1000.mobile_number"
+          },
+          {
+            "name": "Year",
+            "source": "students_large_1000.year",
+            "filter": "{col} = '2nd Year'"
+          },
+          {
+            "name": "Roll Number",
+            "source": "students_large_1000.roll_number"
+          },
+          {
+            "name": "Team",
+            "source": "students_large_1000.team"
+          },
+          {
+            "name": "Position",
+            "source": "students_large_1000.position"
+          }
+        ]
+      },
+      {
+        "output_name": "year3_all_teams",
+        "columns": [
+          {
+            "name": "Name",
+            "source": "students_large_1000.name"
+          },
+          {
+            "name": "Mobile Number",
+            "source": "students_large_1000.mobile_number"
+          },
+          {
+            "name": "Year",
+            "source": "students_large_1000.year",
+            "filter": "{col} = '3rd Year'"
+          },
+          {
+            "name": "Roll Number",
+            "source": "students_large_1000.roll_number"
+          },
+          {
+            "name": "Team",
+            "source": "students_large_1000.team"
+          },
+          {
+            "name": "Position",
+            "source": "students_large_1000.position"
+          }
+        ]
+      },
+      {
+        "output_name": "year4_all_teams",
+        "columns": [
+          {
+            "name": "Name",
+            "source": "students_large_1000.name"
+          },
+          {
+            "name": "Mobile Number",
+            "source": "students_large_1000.mobile_number"
+          },
+          {
+            "name": "Year",
+            "source": "students_large_1000.year",
+            "filter": "{col} = '4th Year'"
+          },
+          {
+            "name": "Roll Number",
+            "source": "students_large_1000.roll_number"
+          },
+          {
+            "name": "Team",
+            "source": "students_large_1000.team"
+          },
+          {
+            "name": "Position",
+            "source": "students_large_1000.position"
+          }
+        ]
+      },
+      {
+        "output_name": "all_years_alpha",
+        "columns": [
+          {
+            "name": "Name",
+            "source": "students_large_1000.name"
+          },
+          {
+            "name": "Mobile Number",
+            "source": "students_large_1000.mobile_number"
+          },
+          {
+            "name": "Year",
+            "source": "students_large_1000.year"
+          },
+          {
+            "name": "Roll Number",
+            "source": "students_large_1000.roll_number"
+          },
+          {
+            "name": "Team",
+            "source": "students_large_1000.team",
+            "filter": "{col} = 'Alpha Team'"
+          },
+          {
+            "name": "Position",
+            "source": "students_large_1000.position"
+          }
+        ]
+      },
+      {
+        "output_name": "all_years_beta",
+        "columns": [
+          {
+            "name": "Name",
+            "source": "students_large_1000.name"
+          },
+          {
+            "name": "Mobile Number",
+            "source": "students_large_1000.mobile_number"
+          },
+          {
+            "name": "Year",
+            "source": "students_large_1000.year"
+          },
+          {
+            "name": "Roll Number",
+            "source": "students_large_1000.roll_number"
+          },
+          {
+            "name": "Team",
+            "source": "students_large_1000.team",
+            "filter": "{col} = 'Beta Team'"
+          },
+          {
+            "name": "Position",
+            "source": "students_large_1000.position"
+          }
+        ]
+      },
+      {
+        "output_name": "all_years_gamma",
+        "columns": [
+          {
+            "name": "Name",
+            "source": "students_large_1000.name"
+          },
+          {
+            "name": "Mobile Number",
+            "source": "students_large_1000.mobile_number"
+          },
+          {
+            "name": "Year",
+            "source": "students_large_1000.year"
+          },
+          {
+            "name": "Roll Number",
+            "source": "students_large_1000.roll_number"
+          },
+          {
+            "name": "Team",
+            "source": "students_large_1000.team",
+            "filter": "{col} = 'Gamma Team'"
+          },
+          {
+            "name": "Position",
+            "source": "students_large_1000.position"
+          },
+          {
+            "name": "S.NO",
+            "source": "students_large_1000.name",
+            "transforms": [
+              "SERIAL_NO"
+            ]
+          },
+          {
+            "name": "title",
+            "source": "students_large_1000.year",
+            "transforms": [
+              {
+                "type": "CONDITIONAL",
+                "new_column": "title",
+                "rules": [
+                  {
+                    "operator": "CONTAINS",
+                    "value": "1st Year",
+                    "thenVal": "Freshers"
+                  }
+                ],
+                "else_val": "Seniors"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "output_name": "all_years_delta",
+        "columns": [
+          {
+            "name": "Name",
+            "source": "students_large_1000.name"
+          },
+          {
+            "name": "Mobile Number",
+            "source": "students_large_1000.mobile_number"
+          },
+          {
+            "name": "Year",
+            "source": "students_large_1000.year"
+          },
+          {
+            "name": "Roll Number",
+            "source": "students_large_1000.roll_number"
+          },
+          {
+            "name": "Team",
+            "source": "students_large_1000.team",
+            "filter": "{col} = 'Delta Team'"
+          },
+          {
+            "name": "Position",
+            "source": "students_large_1000.position"
+          }
+        ]
+      }
+    ]
+  }
