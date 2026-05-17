@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Add this line! Match it exactly to your GitHub repository name
+  base: '/melder/',
   plugins: [react()],
   server: {
     headers: {
@@ -14,11 +16,9 @@ export default defineConfig({
     exclude: ['sqlocal']
   },
   build: {
-    // This bumps the warning limit to 1000 kB (1MB) since WASM/DB engines are heavy
     chunkSizeWarningLimit: 2000,
     rolldownOptions: {
       output: {
-        // Splits node_modules dependencies out of your main source code chunk
         manualChunks(id) {
           if (id.includes('node_modules')) {
             return 'vendor';
