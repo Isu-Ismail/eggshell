@@ -12,5 +12,19 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['sqlocal']
+  },
+  build: {
+    // This bumps the warning limit to 1000 kB (1MB) since WASM/DB engines are heavy
+    chunkSizeWarningLimit: 2000,
+    rolldownOptions: {
+      output: {
+        // Splits node_modules dependencies out of your main source code chunk
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        }
+      }
+    }
   }
 })

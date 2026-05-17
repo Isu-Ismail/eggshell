@@ -1,0 +1,39 @@
+name: Deploy Dist to Branch
+
+on:
+  push:
+    branches:
+      - main # Change this to 'master' if your default branch is named master
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Fetch the previous commit to allow path filtering
+
+      - name: Check for changes in dist folder
+        id: check_dist
+        run: |
+          # Check if 'dist' folder changed between the last commit and current commit
+          if git diff --name-only HEAD^ HEAD | grep -q "^dist/"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in dist/ folder."
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes in dist/ folder. Skipping deployment."
+          fi
+
+      - name: Deploy to Deploy Branch
+        if: steps.check_dist.outputs.changed == 'true'
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: deploy # The branch the action should deploy to
+          folder: dist # The folder the action should deploy
+          clean: true # Automatically remove deleted files from the deploy branch
