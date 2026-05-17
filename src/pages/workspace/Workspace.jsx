@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ReactFlow, Background, ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProject } from '../../context/ProjectContext';
@@ -65,6 +65,10 @@ function WorkspaceContent() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [isWhyModalOpen, setIsWhyModalOpen] = useState(false);
+
+  // Memoize nodeTypes & edgeTypes to avoid recreate warning
+  const nodeTypesMemo = useMemo(() => nodeTypes, []);
+  const edgeTypesMemo = useMemo(() => edgeTypes, []);
 
   useEffect(() => {
     const hasVisited = localStorage.getItem('melder_visited');
@@ -485,6 +489,7 @@ function WorkspaceContent() {
       <div className={styles.main}>
         <div className={styles.canvasArea}>
           <ReactFlow
+            style={{ width: '100%', height: '100%' }}
             nodes={activeNodes}
             edges={activeEdges}
             onNodesChange={onNodesChange}
@@ -495,15 +500,15 @@ function WorkspaceContent() {
             onPaneClick={handlePaneClick}
             onPaneContextMenu={handlePaneDoubleClick}
             connectOnClick={true}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
+            nodeTypes={nodeTypesMemo}
+            edgeTypes={edgeTypesMemo}
             fitView
             minZoom={0.01}
             maxZoom={8}
             selectionOnDrag={isSelectMode}
             panOnDrag={!isSelectMode}
             selectionMode="partial"
-            deleteKeys={[]}
+            deleteKeyCode={null}
             defaultEdgeOptions={{ 
               type: 'buttonEdge',
               animated: true, 

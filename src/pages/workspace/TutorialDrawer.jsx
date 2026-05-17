@@ -61,7 +61,7 @@ export default function TutorialDrawer({ isOpen, onClose }) {
         <section className={styles.drawerSection}>
           <div className={styles.sectionHeader}>
             <Zap size={14} style={{ color: '#eab308' }} />
-            <h4>Click-to-Route Wires 🔌</h4>
+            <h4>5. Click-to-Route Wires</h4>
           </div>
           <p>1. <strong>Single-click</strong> a handle to start drawing a line. You don't need to hold the mouse down!</p>
           <p>2. Move your cursor. A dashed grey wire will follow your mouse dynamically.</p>
@@ -73,7 +73,7 @@ export default function TutorialDrawer({ isOpen, onClose }) {
         <section className={styles.drawerSection}>
           <div className={styles.sectionHeader}>
             <BrainCircuit size={14} style={{ color: '#a855f7' }} />
-            <h4>AI-Assisted Auto Scripting 🤖</h4>
+            <h4>6. AI-Assisted Auto Scripting</h4>
           </div>
           <p>Easily feed your pipeline schema to your favorite AI (ChatGPT, Claude, Gemini) to generate custom configurations without writing code:</p>
           <p>1. Click the purple **"AI Scripting"** button in the sidebar.</p>

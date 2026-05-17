@@ -592,19 +592,26 @@
   box-shadow: 2px 2px 0px #111827;
 }
 
-.exportFullBtn {
-  background: #06b6d4; /* Premium Cyan */
+/* Tools Dropdown Container */
+.toolsContainer {
+  position: relative;
+  width: 100%;
+}
+
+/* Tools Button - Sleek Royal Blue Neobrutalist style */
+.toolsBtn {
+  background: #6366f1; /* Royal Indigo */
   border: 3px solid #111827;
   border-radius: 8px;
-  padding: 10px 16px;
+  padding: 12px 20px;
   font-family: inherit;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 14px;
   color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   cursor: pointer;
-  box-shadow: 3px 3px 0px #111827;
+  box-shadow: 4px 4px 0px #111827;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
@@ -614,13 +621,85 @@
   box-sizing: border-box;
 }
 
-.exportFullBtn:hover {
-  background: #0891b2;
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0px #111827;
+.toolsBtn:hover {
+  background: #4f46e5;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #111827;
 }
 
-.exportFullBtn:active {
+.toolsBtn:active {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px #111827;
+  box-shadow: 1px 1px 0px #111827;
 }
+
+/* Dropdown list */
+.toolsDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 3px solid #111827;
+  border-radius: 8px;
+  box-shadow: 4px 4px 0px #111827;
+  z-index: 100;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  gap: 4px;
+}
+
+/* Individual list item buttons */
+.toolsDropdown button {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: left;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.1s, transform 0.1s;
+}
+
+.toolsDropdown button:hover {
+  background: #f3f4f6;
+  transform: translateX(2px);
+}
+
+.toolsDropdown button:active {
+  background: #e5e7eb;
+}
+
+/* Vibrant color accents for individual tool dropdown items */
+.toolItemOutput svg { color: #f97316; } /* Orange */
+.toolItemOutput:hover { background: rgba(249, 115, 22, 0.1) !important; color: #ea580c !important; }
+
+.toolItemTemplate svg { color: #10b981; } /* Emerald */
+.toolItemTemplate:hover { background: rgba(16, 185, 129, 0.1) !important; color: #059669 !important; }
+
+.toolItemAi svg { color: #a855f7; } /* Purple */
+.toolItemAi:hover { background: rgba(168, 85, 247, 0.1) !important; color: #9333ea !important; }
+
+.toolItemExport svg { color: #06b6d4; } /* Cyan */
+.toolItemExport:hover { background: rgba(6, 182, 212, 0.1) !important; color: #0891b2 !important; }
+
+.toolItemTransform svg { color: #ec4899; } /* Pink */
+.toolItemTransform:hover { background: rgba(236, 72, 153, 0.1) !important; color: #db2777 !important; }
+
+.toolItemCondition svg { color: #f59e0b; } /* Amber */
+.toolItemCondition:hover { background: rgba(245, 158, 11, 0.1) !important; color: #d97706 !important; }
+
+.toolItemFilter svg { color: #3b82f6; } /* Blue */
+.toolItemFilter:hover { background: rgba(59, 130, 246, 0.1) !important; color: #2563eb !important; }
+
+.toolItemJoin svg { color: #6366f1; } /* Indigo */
+.toolItemJoin:hover { background: rgba(99, 102, 241, 0.1) !important; color: #4f46e5 !important; }

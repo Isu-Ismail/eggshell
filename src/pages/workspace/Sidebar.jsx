@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { importFileToDB } from '../../services/importService';
 import { useProject } from '../../context/ProjectContext';
 import { useSqlite } from '../../hooks/useSqlite';
-import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCircle, Sparkles, Filter, Link2, BrainCircuit, Eye, EyeOff, ListChecks, Download } from 'lucide-react';
+import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCircle, Sparkles, Filter, Link2, BrainCircuit, Eye, EyeOff, ListChecks, Download, Settings2 } from 'lucide-react';
 import { ConfirmModal, AlertModal } from '../../components/ui/Modal';
 import styles from './Sidebar.module.css';
 
@@ -22,13 +22,13 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [alertState, setAlertState] = useState({ isOpen: false, title: '', message: '' });
   
-  const [isOpMenuOpen, setIsOpMenuOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
+  const toolsDropdownRef = useRef(null);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpMenuOpen(false);
+      if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(e.target)) {
+        setIsToolsMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -117,13 +117,13 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
     <div className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
   <div className={styles.headerRow}>
     <div className={styles.brandingGroup}>
-      <div className={styles.brandBox} onClick={onOpenWhyChoose} title="Click to view why Melder is better than Excel">
+      <div className={styles.brandBox} onClick={onOpenWhyChoose} title="Click to view Welcome Screen and feature showcase">
         <h2 className={styles.title}>Melder</h2>
         {!isCollapsed && (
           <button 
             className={styles.brandHelpBtn} 
             onClick={(e) => { e.stopPropagation(); onOpenWhyChoose(); }}
-            title="Why Choose Melder?"
+            title="Welcome to Melder"
           >
             <HelpCircle size={12} />
           </button>
@@ -160,13 +160,99 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
           />
         </div>
 
-        <button className={styles.addOutputBtn} onClick={addOutputNode} title="Create blank output file layout">
-          <PlusCircle size={18} /> Add Output File
-        </button>
+        <div className={styles.toolsContainer} ref={toolsDropdownRef}>
+          <button 
+            className={styles.toolsBtn} 
+            onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)} 
+            title="Expand stitcher utilities, templates, AI, and canvas blocks"
+          >
+            <Settings2 size={18} /> Tools
+          </button>
+          
+          {isToolsMenuOpen && (
+            <div className={styles.toolsDropdown}>
+              <button 
+                onClick={() => { addOutputNode(); setIsToolsMenuOpen(false); }}
+                title="Create blank output file layout"
+                className={styles.toolItemOutput}
+              >
+                <PlusCircle size={14} /> Add Output File
+              </button>
 
-        <button className={styles.importOutputBtn} onClick={() => isReady && !loading && outputTemplateRef.current.click()} title="Import excel sheet to pre-fill output columns">
-          <UploadCloud size={18} /> Import Output Layout
-        </button>
+              <button 
+                onClick={() => { outputTemplateRef.current.click(); setIsToolsMenuOpen(false); }}
+                title="Import excel sheet to pre-fill output columns"
+                className={styles.toolItemTemplate}
+              >
+                <UploadCloud size={14} /> Import Output Layout
+              </button>
+
+              <button 
+                onClick={() => { onOpenAiModal(); setIsToolsMenuOpen(false); }}
+                title="Configure visual pipeline using AI Scripting Prompt JSON configs"
+                className={styles.toolItemAi}
+              >
+                <BrainCircuit size={14} /> AI Scripting Panel
+              </button>
+
+              <button 
+                onClick={() => {
+                  const configStr = exportFullPipelineConfig();
+                  if (!configStr) return;
+                  const blob = new Blob([configStr], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `stitcher_full_pipeline_config.json`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+                  setIsToolsMenuOpen(false);
+                }} 
+                title="Download entire canvas pipeline configuration (multiple sheets & outputs)"
+                className={styles.toolItemExport}
+              >
+                <Download size={14} /> Export Pipeline JSON
+              </button>
+
+              <div style={{ height: '2px', background: '#111827', margin: '4px 0' }} />
+
+              <button 
+                onClick={() => { addTransformNode(); setIsToolsMenuOpen(false); }}
+                title="Visual String Transform Node (Upper/Lower/Trim/Custom)"
+                className={styles.toolItemTransform}
+              >
+                <Sparkles size={14} /> Transform Block
+              </button>
+
+              <button 
+                onClick={() => { addConditionNode(); setIsToolsMenuOpen(false); }}
+                title="Visual If-Else Conditional Block (for amount mappings, scoring, etc.)"
+                className={styles.toolItemCondition}
+              >
+                <ListChecks size={14} /> Conditional Block
+              </button>
+
+              <button 
+                onClick={() => { addFilterNode(); setIsToolsMenuOpen(false); }}
+                title="Visual SQL Filter Node (e.g. {col} = 'value')"
+                className={styles.toolItemFilter}
+              >
+                <Filter size={14} /> Filter Block
+              </button>
+
+              <button 
+                onClick={() => { addJoinNode(); setIsToolsMenuOpen(false); }}
+                title="Visual LEFT JOIN Mismatch Key Node"
+                className={styles.toolItemJoin}
+              >
+                <Link2 size={14} /> Join Block
+              </button>
+            </div>
+          )}
+        </div>
+
         <input 
           type="file" 
           accept=".xlsx,.csv" 
@@ -174,69 +260,6 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
           style={{ display: 'none' }} 
           onChange={handleUploadOutputTemplate}
         />
-
-        <button className={styles.aiBtn} onClick={onOpenAiModal} title="Configure visual pipeline using AI Scripting Prompt JSON configs">
-          <BrainCircuit size={18} /> AI Scripting Panel
-        </button>
-
-        <button 
-          className={styles.exportFullBtn} 
-          onClick={() => {
-            const configStr = exportFullPipelineConfig();
-            if (!configStr) return;
-            const blob = new Blob([configStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `stitcher_full_pipeline_config.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }} 
-          title="Download entire canvas pipeline configuration (multiple sheets & outputs)"
-        >
-          <Download size={18} /> Export Pipeline JSON
-        </button>
-
-        <div className={styles.opBtnContainer} ref={dropdownRef}>
-          <button 
-            className={styles.addOpBtn} 
-            onClick={() => setIsOpMenuOpen(!isOpMenuOpen)} 
-            title="Add transformation/join/filter operation block to canvas"
-          >
-            <PlusCircle size={18} /> Add Block...
-          </button>
-          
-          {isOpMenuOpen && (
-            <div className={styles.opDropdown}>
-              <button 
-                onClick={() => { addTransformNode(); setIsOpMenuOpen(false); }}
-                title="Visual String Transform Node (Upper/Lower/Trim/Custom)"
-              >
-                <Sparkles size={14} /> Transform Block
-              </button>
-              <button 
-                onClick={() => { addConditionNode(); setIsOpMenuOpen(false); }}
-                title="Visual If-Else Conditional Block (for amount mappings, scoring, etc.)"
-              >
-                <ListChecks size={14} /> Conditional Block
-              </button>
-              <button 
-                onClick={() => { addFilterNode(); setIsOpMenuOpen(false); }}
-                title="Visual SQL Filter Node (e.g. {col} = 'value')"
-              >
-                <Filter size={14} /> Filter Block
-              </button>
-              <button 
-                onClick={() => { addJoinNode(); setIsOpMenuOpen(false); }}
-                title="Visual LEFT JOIN Mismatch Key Node"
-              >
-                <Link2 size={14} /> Join Block
-              </button>
-            </div>
-          )}
-        </div>
       </div>
 
       <div className={styles.fileListWrapper}>

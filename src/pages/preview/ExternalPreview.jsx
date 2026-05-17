@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSqlite } from '../../hooks/useSqlite';
 import { buildMappingQuery } from '../../services/sqlBuilder';
-import { Download, RefreshCw, Layers } from 'lucide-react';
+import { Download, RefreshCw, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import { AlertModal } from '../../components/ui/Modal';
 import styles from './ExternalPreview.module.css';
 
@@ -11,6 +11,9 @@ export default function ExternalPreview() {
   const [edges, setEdges] = useState([]);
   
   const [previewData, setPreviewData] = useState([]);
+  const [columnOrder, setColumnOrder] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'DEFAULT' }); // ASC, DESC, DEFAULT
+  
   const [errorMsg, setErrorMsg] = useState(null);
   const [limit, setLimit] = useState(10);
   const [alertState, setAlertState] = useState({ isOpen: false, title: '', message: '' });
@@ -23,6 +26,7 @@ export default function ExternalPreview() {
   const pendingQueriesRef = useRef(new Map());
 
   const outputNodes = nodes.filter(n => n.type === 'outputNode');
+  const sourceNodes = nodes.filter(n => n.type === 'sourceNode');
 
   // Initialize Broadcast Channel to listen to the Main tab
   useEffect(() => {
@@ -54,16 +58,38 @@ export default function ExternalPreview() {
     };
   }, []);
 
-  // Sync selectedOutputId with synced output nodes
+  // Sync selectedOutputId with synced output nodes & source nodes
   useEffect(() => {
-    if (outputNodes.length > 0) {
-      if (!selectedOutputId || !outputNodes.some(n => n.id === selectedOutputId)) {
-        setSelectedOutputId(outputNodes[0].id);
+    if (outputNodes.length > 0 || sourceNodes.length > 0) {
+      if (!selectedOutputId) {
+        if (outputNodes.length > 0) {
+          setSelectedOutputId(outputNodes[0].id);
+        } else {
+          setSelectedOutputId(`source_${sourceNodes[0].id}`);
+        }
+      } else {
+        const isOutputValid = outputNodes.some(n => n.id === selectedOutputId);
+        const isSourceValid = sourceNodes.some(n => `source_${n.id}` === selectedOutputId);
+        if (!isOutputValid && !isSourceValid) {
+          if (outputNodes.length > 0) {
+            setSelectedOutputId(outputNodes[0].id);
+          } else if (sourceNodes.length > 0) {
+            setSelectedOutputId(`source_${sourceNodes[0].id}`);
+          } else {
+            setSelectedOutputId('');
+          }
+        }
       }
     } else {
       setSelectedOutputId('');
     }
-  }, [nodes, selectedOutputId, outputNodes]);
+  }, [nodes, selectedOutputId, outputNodes, sourceNodes]);
+
+  // Reset column order and sorting when switching active sheet/output
+  useEffect(() => {
+    setColumnOrder([]);
+    setSortConfig({ key: null, direction: 'DEFAULT' });
+  }, [selectedOutputId]);
 
   // Execute query via Broadcast Channel proxy to use the Main Tab's SQLite connection
   const executeQueryRemote = (query) => {
@@ -81,29 +107,57 @@ export default function ExternalPreview() {
     });
   };
 
-  // Fetch Preview whenever state, selected node, or limit changes
+  // Helper to compile the active base SQLite query with sorting rules
+  const getBaseQuery = (applySort = true) => {
+    if (!selectedOutputId) return null;
+    
+    let query = '';
+    if (selectedOutputId.startsWith('source_')) {
+      const sourceId = selectedOutputId.replace('source_', '');
+      query = `SELECT * FROM "${sourceId}"`;
+    } else {
+      query = buildMappingQuery(nodes, edges, selectedOutputId);
+    }
+    
+    if (query && applySort && sortConfig.key && sortConfig.direction !== 'DEFAULT') {
+      // Safely order by lowercase column alias in SQLite for robust case-insensitive alphabetical sorting
+      query += ` ORDER BY LOWER("${sortConfig.key}") ${sortConfig.direction}`;
+    }
+    return query;
+  };
+
+  // Fetch Preview whenever state, selected node, sorting, or limit changes
   useEffect(() => {
-    if (!selectedOutputId || edges.length === 0 || nodes.length === 0) {
+    if (!selectedOutputId || (edges.length === 0 && !selectedOutputId.startsWith('source_')) || nodes.length === 0) {
       setPreviewData([]);
       setErrorMsg(null);
+      setColumnOrder([]);
       return;
     }
 
     const fetchPreview = async () => {
       try {
-        const query = buildMappingQuery(nodes, edges, selectedOutputId);
+        const query = getBaseQuery(true);
         if (query) {
           const res = await executeQueryRemote(query + ` LIMIT ${limit}`);
           if (res && res.length > 0) {
             setPreviewData(res);
             setErrorMsg(null);
+            
+            // Set default column order if not set yet or has column mismatch
+            const databaseColumns = Object.keys(res[0]);
+            if (columnOrder.length === 0 || !databaseColumns.every(k => columnOrder.includes(k)) || columnOrder.length !== databaseColumns.length) {
+              setColumnOrder(databaseColumns);
+            }
           } else {
             setPreviewData([]);
             setErrorMsg(null);
+            setColumnOrder([]);
           }
         } else {
           setPreviewData([]);
           setErrorMsg(null);
+          setColumnOrder([]);
         }
       } catch (err) {
         console.error("Preview sync error", err);
@@ -112,17 +166,27 @@ export default function ExternalPreview() {
     };
 
     fetchPreview();
-  }, [nodes, edges, limit, selectedOutputId]);
+  }, [nodes, edges, limit, selectedOutputId, sortConfig]);
 
   const handleExport = async () => {
     if (!selectedOutputId) return;
-    const query = buildMappingQuery(nodes, edges, selectedOutputId);
+    const query = getBaseQuery(true); // Respects row sorting in database
     if (!query) return;
 
-    const selectedNode = outputNodes.find(n => n.id === selectedOutputId);
-    const suggestedFileName = selectedNode 
-      ? `${selectedNode.data.name.trim().toLowerCase().replace(/\s+/g, '_')}.csv`
-      : 'stitched_output.csv';
+    let suggestedFileName = 'stitched_output.csv';
+    if (selectedOutputId.startsWith('source_')) {
+      const sourceId = selectedOutputId.replace('source_', '');
+      const srcNode = sourceNodes.find(n => n.id === sourceId);
+      suggestedFileName = srcNode 
+        ? `raw_${srcNode.data.fileName.trim().toLowerCase().replace(/\s+/g, '_')}`
+        : 'raw_source.csv';
+      if (!suggestedFileName.endsWith('.csv')) suggestedFileName += '.csv';
+    } else {
+      const selectedNode = outputNodes.find(n => n.id === selectedOutputId);
+      suggestedFileName = selectedNode 
+        ? `${selectedNode.data.name.trim().toLowerCase().replace(/\s+/g, '_')}.csv`
+        : 'stitched_output.csv';
+    }
 
     try {
       let fileHandle = null;
@@ -157,15 +221,16 @@ export default function ExternalPreview() {
         
         if (res && res.length > 0) {
           let chunkStr = '';
+          const cols = columnOrder.length > 0 ? columnOrder : Object.keys(res[0]);
+          
           if (isFirstBatch) {
-            const cols = Object.keys(res[0]);
-            chunkStr += cols.join(',') + '\n';
+            chunkStr += cols.map(c => `"${c.replace(/"/g, '""')}"`).join(',') + '\n';
             isFirstBatch = false;
           }
           
           for (const row of res) {
-             const rowVals = Object.values(row).map(v => {
-                const str = String(v ?? '');
+             const rowVals = cols.map(c => {
+                const str = String(row[c] ?? '');
                 if (str.includes(',') || str.includes('"') || str.includes('\n')) {
                   return `"${str.replace(/"/g, '""')}"`;
                 }
@@ -199,36 +264,51 @@ export default function ExternalPreview() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       }
-
-      setAlertState({ isOpen: true, title: "Success", message: "Export complete! Your stitched data has been saved." });
     } catch (err) {
-      console.error("Remote export error", err);
-      setAlertState({ isOpen: true, title: "Export Failed", message: err.message || "Failed to export data." });
-    }
-  };
-
-  // Initialize bulk selection when modal opens
-  useEffect(() => {
-    if (isBulkExportModalOpen) {
-      const initial = {};
-      outputNodes.forEach(node => {
-        initial[node.id] = true;
+      console.error("Export failure", err);
+      setAlertState({ 
+        isOpen: true, 
+        title: "Export Failed", 
+        message: err.message || "Failed to download CSV compiled output." 
       });
-      setSelectedBulkOutputIds(initial);
     }
-  }, [isBulkExportModalOpen, nodes]);
-
-  const isAllBulkSelected = outputNodes.length > 0 && outputNodes.every(n => !!selectedBulkOutputIds[n.id]);
-
-  const handleToggleAllBulk = () => {
-    const next = {};
-    const selectVal = !isAllBulkSelected;
-    outputNodes.forEach(node => {
-      next[node.id] = selectVal;
-    });
-    setSelectedBulkOutputIds(next);
   };
 
+  const moveColumn = (colName, direction) => {
+    const idx = columnOrder.indexOf(colName);
+    if (idx === -1) return;
+    
+    const newOrder = [...columnOrder];
+    if (direction === 'left' && idx > 0) {
+      newOrder[idx] = newOrder[idx - 1];
+      newOrder[idx - 1] = colName;
+    } else if (direction === 'right' && idx < newOrder.length - 1) {
+      newOrder[idx] = newOrder[idx + 1];
+      newOrder[idx + 1] = colName;
+    }
+    setColumnOrder(newOrder);
+  };
+
+  const toggleSort = (colName) => {
+    setSortConfig(prev => {
+      if (prev.key !== colName) {
+        return { key: colName, direction: 'ASC' };
+      } else if (prev.direction === 'ASC') {
+        return { key: colName, direction: 'DESC' };
+      } else {
+        return { key: null, direction: 'DEFAULT' };
+      }
+    });
+  };
+
+  const handleResetDefault = () => {
+    setSortConfig({ key: null, direction: 'DEFAULT' });
+    if (previewData.length > 0) {
+      setColumnOrder(Object.keys(previewData[0]));
+    }
+  };
+
+  // Bulk Export Handlers
   const handleToggleBulkNode = (nodeId) => {
     setSelectedBulkOutputIds(prev => ({
       ...prev,
@@ -236,19 +316,42 @@ export default function ExternalPreview() {
     }));
   };
 
+  const handleToggleAllBulk = () => {
+    const allMapped = outputNodes.filter(n => edges.some(e => e.target === n.id));
+    const anyUnselected = allMapped.some(n => !selectedBulkOutputIds[n.id]);
+    
+    const nextMap = {};
+    if (anyUnselected) {
+      allMapped.forEach(n => {
+        nextMap[n.id] = true;
+      });
+    }
+    setSelectedBulkOutputIds(nextMap);
+  };
+
+  const isAllBulkSelected = outputNodes
+    .filter(n => edges.some(e => e.target === n.id))
+    .every(n => !!selectedBulkOutputIds[n.id]);
+
   const handleBulkExport = async () => {
-    const selectedIds = Object.keys(selectedBulkOutputIds).filter(id => selectedBulkOutputIds[id]);
-    if (selectedIds.length === 0) {
-      setAlertState({ isOpen: true, title: "Export Failed", message: "Please select at least one output to export." });
+    const activeTargets = Object.entries(selectedBulkOutputIds)
+      .filter(([_, checked]) => checked)
+      .map(([id]) => id);
+
+    if (activeTargets.length === 0) {
+      setAlertState({ 
+        isOpen: true, 
+        title: "Export Cancelled", 
+        message: "Please select at least one visual output file to export." 
+      });
       return;
     }
 
     setIsBulkExportModalOpen(false);
-
     let successCount = 0;
     let failedCount = 0;
-    
-    for (const outputId of selectedIds) {
+
+    for (const outputId of activeTargets) {
       const query = buildMappingQuery(nodes, edges, outputId);
       if (!query) {
         failedCount++;
@@ -270,26 +373,26 @@ export default function ExternalPreview() {
         while (hasMore) {
           const batchQuery = `${query} LIMIT ${batchSize} OFFSET ${offset}`;
           const res = await executeQueryRemote(batchQuery);
-
+          
           if (res && res.length > 0) {
             let chunkStr = '';
             if (isFirstBatch) {
               const cols = Object.keys(res[0]);
-              chunkStr += cols.join(',') + '\n';
+              chunkStr += cols.map(c => `"${c.replace(/"/g, '""')}"`).join(',') + '\n';
               isFirstBatch = false;
             }
-
+            
             for (const row of res) {
-              const rowVals = Object.values(row).map(v => {
-                const str = String(v ?? '');
-                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                  return `"${str.replace(/"/g, '""')}"`;
-                }
-                return str;
-              });
-              chunkStr += rowVals.join(',') + '\n';
+               const rowVals = Object.values(row).map(v => {
+                  const str = String(v ?? '');
+                  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return `"${str.replace(/"/g, '""')}"`;
+                  }
+                  return str;
+               });
+               chunkStr += rowVals.join(',') + '\n';
             }
-
+            
             fullCsvBlobData.push(chunkStr);
             offset += batchSize;
           } else {
@@ -329,8 +432,13 @@ export default function ExternalPreview() {
     }
   };
 
-  const selectedNode = outputNodes.find(n => n.id === selectedOutputId);
-  const isSelectedNodeMapped = edges.some(e => e.target === selectedOutputId);
+  const selectedNode = selectedOutputId.startsWith('source_')
+    ? sourceNodes.find(n => n.id === selectedOutputId.replace('source_', ''))
+    : outputNodes.find(n => n.id === selectedOutputId);
+
+  const isSelectedNodeMapped = selectedOutputId.startsWith('source_')
+    ? true
+    : edges.some(e => e.target === selectedOutputId);
 
   return (
     <div className={styles.page}>
@@ -347,25 +455,48 @@ export default function ExternalPreview() {
         </div>
 
         <div className={styles.actions}>
-          {outputNodes.length > 0 && (
+          {(outputNodes.length > 0 || sourceNodes.length > 0) && (
             <select 
               className={styles.selectDropdown}
               value={selectedOutputId}
               onChange={e => setSelectedOutputId(e.target.value)}
-              title="Select output layout to preview"
+              title="Select dataset to preview"
             >
-              {outputNodes.map(node => (
-                <option key={node.id} value={node.id}>
-                  {node.data.name || 'Unnamed Output'}
-                </option>
-              ))}
+              {outputNodes.length > 0 && (
+                <optgroup label="Stitched Outputs">
+                  {outputNodes.map(node => (
+                    <option key={node.id} value={node.id}>
+                      {node.data.name || 'Unnamed Output'}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {sourceNodes.length > 0 && (
+                <optgroup label="Original Uploaded Files">
+                  {sourceNodes.map(node => (
+                    <option key={node.id} value={`source_${node.id}`}>
+                      {node.data.fileName || 'Unnamed File'} (Raw Input)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           )}
 
           {previewData.length > 0 && (
-            <button onClick={() => setLimit(l => l + 20)} className={styles.loadMoreBtn}>
-              Load More
-            </button>
+            <>
+              <button onClick={() => setLimit(l => l + 20)} className={styles.loadMoreBtn}>
+                Load More
+              </button>
+              
+              <button 
+                onClick={handleResetDefault} 
+                className={styles.resetBtn}
+                title="Reset column order and row sort back to original default"
+              >
+                <RotateCcw size={16} /> Reset Default
+              </button>
+            </>
           )}
 
           {outputNodes.length > 1 && (
@@ -382,6 +513,7 @@ export default function ExternalPreview() {
             className={styles.exportBtn} 
             onClick={handleExport} 
             disabled={!selectedOutputId || !isSelectedNodeMapped}
+            title="Download currently active preview dataset matching your customized column order and sorting"
           >
             <Download size={16} /> Export to CSV
           </button>
@@ -394,22 +526,58 @@ export default function ExternalPreview() {
             <h3>Compilation Error</h3>
             <p>{errorMsg}</p>
           </div>
-        ) : previewData.length > 0 ? (
+        ) : previewData.length > 0 && columnOrder.length > 0 ? (
           <div className={styles.tableCard}>
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    {Object.keys(previewData[0]).map(col => (
-                      <th key={col}>{col}</th>
-                    ))}
+                    {columnOrder.map((col, idx) => {
+                      const isSorted = sortConfig.key === col;
+                      const direction = sortConfig.direction;
+                      
+                      return (
+                        <th key={col}>
+                          <div className={styles.thContent}>
+                            <span 
+                              className={styles.thLabel} 
+                              onClick={() => toggleSort(col)}
+                              title="Click to sort by this column"
+                            >
+                              {col}
+                              {isSorted && direction === 'ASC' && <ArrowUp size={11} className={styles.sortIcon} />}
+                              {isSorted && direction === 'DESC' && <ArrowDown size={11} className={styles.sortIcon} />}
+                            </span>
+                            
+                            <div className={styles.columnMoveBtns}>
+                              <button 
+                                onClick={() => moveColumn(col, 'left')} 
+                                disabled={idx === 0}
+                                title="Move column left"
+                                className={styles.columnMoveBtn}
+                              >
+                                <ArrowLeft size={10} />
+                              </button>
+                              <button 
+                                onClick={() => moveColumn(col, 'right')} 
+                                disabled={idx === columnOrder.length - 1}
+                                title="Move column right"
+                                className={styles.columnMoveBtn}
+                              >
+                                <ArrowRight size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {previewData.map((row, i) => (
                     <tr key={i}>
-                      {Object.values(row).map((val, j) => (
-                        <td key={j}>{val}</td>
+                      {columnOrder.map((col, j) => (
+                        <td key={j}>{row[col] ?? ''}</td>
                       ))}
                     </tr>
                   ))}
@@ -425,9 +593,12 @@ export default function ExternalPreview() {
             <RefreshCw size={48} className={styles.emptyIcon} />
             <h2>No Wired Columns Detected</h2>
             <p>
-              {selectedNode 
-                ? `Connect columns to the "${selectedNode.data.name}" output layout on your main canvas tab to populate this preview.`
-                : "Awaiting workspace connections. Open the Excel Stitcher canvas and drag wire links from source columns to target outputs."}
+              {selectedOutputId.startsWith('source_')
+                ? "Awaiting data load..."
+                : selectedNode 
+                  ? `Connect columns to the "${selectedNode.data.name}" output layout on your main canvas tab to populate this preview.`
+                  : "Awaiting workspace connections. Open the Excel Stitcher canvas and drag wire links from source columns to target outputs."
+              }
             </p>
           </div>
         )}

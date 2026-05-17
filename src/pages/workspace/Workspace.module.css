@@ -14,6 +14,8 @@
 }
 .canvasArea {
   flex: 1;
+  width: 100%;
+  height: 100%;
   background: var(--bg-color);
   position: relative;
 }
@@ -144,87 +146,119 @@
   left: 0px !important;
 }
 .drawerHeader {
-  background: var(--node-border);
-  color: #ffffff;
+  background: #ffffff;
+  color: #111827;
   padding: 16px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 3px solid #111827;
 }
 .drawerTitleWrapper {
   display: flex;
   align-items: center;
   gap: 8px;
+  background: #f3e8ff;
+  border: 2px solid #111827;
+  border-radius: 6px;
+  padding: 6px 12px;
+  box-shadow: 2px 2px 0px #111827;
+  transform: translate(-1px, -1px);
+}
+.drawerTitleWrapper svg {
+  color: #8b5cf6;
 }
 .drawerHeader h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
+  color: #111827;
 }
 .drawerCloseBtn {
-  background: none;
-  border: none;
-  color: #ffffff;
+  background: #ffffff;
+  border: 2.5px solid #111827;
+  border-radius: 6px;
+  box-shadow: 2px 2px 0px #111827;
+  color: #111827;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background 0.15s;
+  padding: 6px;
+  transition: all 0.1s;
 }
 .drawerCloseBtn:hover {
-  background: rgba(255,255,255,0.15);
+  background: #fee2e2;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px #111827;
+  color: #ef4444;
+}
+.drawerCloseBtn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px #111827;
 }
 .drawerBody {
   flex: 1;
-  padding: 24px;
+  padding: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
+  background: #fbfbfb;
 }
 .drawerSection {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-bottom: 2px dashed rgba(17, 24, 39, 0.15);
-  padding-bottom: 20px;
+  gap: 12px;
+  background: #ffffff;
+  border: 3px solid #111827;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 4px 4px 0px #111827;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
 }
-.drawerSection:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.drawerSection:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #111827;
 }
 .sectionHeader {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  background: #ffffff;
+  border: 2px solid #111827;
+  border-radius: 6px;
+  padding: 6px 12px;
+  box-shadow: 2px 2px 0px #111827;
+  margin-bottom: 4px;
+  width: fit-content;
 }
 .drawerSection h4 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--text-main);
+  font-size: 11.5px;
+  font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  color: #111827;
+  letter-spacing: 0.01em;
 }
 .drawerSection p {
   margin: 0;
-  font-size: 13px;
-  color: #475569;
-  line-height: 1.6;
-  font-weight: 500;
+  font-size: 12.5px;
+  color: #374151;
+  line-height: 1.55;
+  font-weight: 600;
 }
 .drawerSection code {
-  background: #f1f5f9;
+  background: #f3f4f6;
   padding: 2px 6px;
   border-radius: 4px;
   font-family: monospace;
   font-weight: 700;
-  color: #a855f7;
-  border: 1px solid #e2e8f0;
+  color: #9333ea;
+  border: 1px solid #e5e7eb;
 }
 
 /* Connection Wire Splicing Menu */
@@ -543,5 +577,111 @@
   transform: translate(2px, 2px);
   box-shadow: 2px 2px 0px #111827;
 }
+
+/* Stacked Vertical Welcome Banner Component */
+.welcomeBannerVertical {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #f4f0eb;
+  border: 3px solid #111827;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 4px 4px 0px #111827;
+  text-align: left;
+}
+
+.welcomeIntroSection h4 {
+  margin: 0 0 10px 0;
+  font-size: 19px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.welcomeIntroSection p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #374151;
+  font-weight: 600;
+}
+
+.welcomeToolsSection {
+  background: #ffffff;
+  border: 2.5px solid #111827;
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 3px 3px 0px #111827;
+}
+
+.welcomeToolsSection h5 {
+  margin: 0 0 14px 0;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #111827;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid #111827;
+  padding-bottom: 6px;
+}
+
+.welcomeToolsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.welcomeToolsItem {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.welcomeToolsItem svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.welcomeToolsItem div {
+  display: flex;
+  flex-direction: column;
+}
+
+.welcomeToolsItem strong {
+  font-size: 12px;
+  font-weight: 800;
+  color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.welcomeToolsItem span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.whyShowcaseHeading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #111827;
+  margin: 12px 0 16px 0;
+  letter-spacing: 0.05em;
+  border-bottom: 3px solid #111827;
+  padding-bottom: 4px;
+  width: fit-content;
+}
+
+
+
 
 
