@@ -1,0 +1,88 @@
+.node {
+  background: #ffffff;
+  border: 2px solid var(--node-border);
+  border-radius: 20px;
+  padding: 6px 12px;
+  box-shadow: 3px 3px 0px rgba(17,24,39,1);
+  font-family: 'Outfit', sans-serif;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 105px;
+  transition: all 0.15s;
+}
+.node:hover {
+  box-shadow: 4px 4px 0px rgba(17,24,39,1);
+}
+.capsule {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+}
+.titleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.titleIcon {
+  color: #ec4899;
+  flex-shrink: 0;
+}
+.title {
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #ec4899; /* Filter Pink/Red */
+}
+.actions {
+  display: flex;
+  gap: 4px;
+}
+.iconBtn {
+  background: #f1f5f9;
+  border: 1.5px solid var(--node-border);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: all 0.1s;
+}
+.iconBtn:hover {
+  background: #cbd5e1;
+}
+.delBtn {
+  background: #fef2f2;
+  border: 1.5px solid #ef4444;
+  border-radius: 4px;
+  color: #ef4444;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: all 0.1s;
+}
+.delBtn:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+.targetHandle {
+  width: 10px !important;
+  height: 10px !important;
+  background: #3b82f6 !important;
+  border: 2px solid var(--node-border) !important;
+  left: -6px !important;
+}
+.sourceHandle {
+  width: 10px !important;
+  height: 10px !important;
+  background: #22c55e !important;
+  border: 2px solid var(--node-border) !important;
+  right: -6px !important;
+}

@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg-color: #f4f0eb; /* Retro off-white */
+  --panel-bg: #ffffff;
+  --border-color: #111827;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --primary: #2563eb; 
+  --primary-hover: #1d4ed8;
+  --accent: #ea580c; 
+  --node-bg: #ffffff;
+  --node-border: #111827;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Scrollbar Retro Style */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-color); 
+  border-left: 2px solid var(--node-border);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted); 
+  border: 2px solid var(--bg-color);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-main); 
+}
+
+/* Bulletproof React Flow layering: Always keep waypoints and routes behind standard cards */
+.react-flow__node {
+  z-index: 100 !important;
+}
+
+.react-flow__node.react-flow__node-waypointNode {
+  z-index: 10 !important;
+}

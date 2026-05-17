@@ -1,0 +1,336 @@
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  position: relative;
+  overflow: hidden;
+}
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100vh;
+}
+.canvasArea {
+  flex: 1;
+  background: var(--bg-color);
+  position: relative;
+}
+.expandBtn {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  z-index: 100;
+  width: 40px;
+  height: 40px;
+  background: #ffffff;
+  border: 3px solid var(--node-border);
+  box-shadow: 4px 4px 0px rgba(17,24,39,1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.expandBtn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px rgba(17,24,39,1);
+}
+.expandBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px rgba(17,24,39,1);
+}
+
+/* Custom Floating Zoom Panel */
+.zoomPanel {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.zoomBtn {
+  width: 40px;
+  height: 40px;
+  background: #ffffff;
+  border: 3px solid var(--node-border);
+  box-shadow: 4px 4px 0px rgba(17,24,39,1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-main);
+  transition: all 0.15s;
+}
+.zoomBtn:hover {
+  background: #f4f0eb;
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px rgba(17,24,39,1);
+}
+.zoomBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px rgba(17,24,39,1);
+}
+
+.previewTabBtn {
+  width: 40px;
+  height: 40px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: 3px solid var(--node-border);
+  box-shadow: 4px 4px 0px rgba(17,24,39,1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.previewTabBtn:hover {
+  background: #2563eb;
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px rgba(17,24,39,1);
+}
+.previewTabBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px rgba(17,24,39,1);
+}
+
+.tidyBtn {
+  width: 40px;
+  height: 40px;
+  background: #a855f7;
+  color: #ffffff;
+  border: 3px solid var(--node-border);
+  box-shadow: 4px 4px 0px rgba(17,24,39,1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tidyBtn:hover {
+  background: #9333ea;
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px rgba(17,24,39,1);
+}
+.tidyBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px rgba(17,24,39,1);
+}
+
+/* Slide-over Tutorial Drawer */
+.drawer {
+  position: absolute;
+  top: 0;
+  left: -360px; /* Hidden off-screen left */
+  width: 350px;
+  height: 100vh;
+  background: #ffffff;
+  border-right: 3px solid var(--node-border);
+  box-shadow: 10px 0px 0px rgba(17,24,39,0.15);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.drawerOpen {
+  left: 0px !important;
+}
+.drawerHeader {
+  background: var(--node-border);
+  color: #ffffff;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.drawerTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.drawerHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.drawerCloseBtn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.drawerCloseBtn:hover {
+  background: rgba(255,255,255,0.15);
+}
+.drawerBody {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.drawerSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 2px dashed rgba(17, 24, 39, 0.15);
+  padding-bottom: 20px;
+}
+.drawerSection:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.drawerSection h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.drawerSection p {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+  font-weight: 500;
+}
+.drawerSection code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 700;
+  color: #a855f7;
+  border: 1px solid #e2e8f0;
+}
+
+/* Connection Wire Splicing Menu */
+.edgeInsertBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
+}
+.edgeInsertMenu {
+  position: absolute;
+  background: #ffffff;
+  border: 3px solid var(--node-border);
+  box-shadow: 4px 4px 0px rgba(17,24,39,1);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 9999;
+  width: 175px;
+  box-sizing: border-box;
+}
+.edgeInsertHeader {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px;
+  border-bottom: 2px dashed rgba(17, 24, 39, 0.15);
+  margin-bottom: 4px;
+}
+.edgeInsertMenu button {
+  background: #ffffff;
+  border: 2px solid var(--node-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.edgeInsertMenu button:hover {
+  background: #f4f0eb;
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0px rgba(17,24,39,1);
+}
+.edgeInsertMenu button:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 0px 0px rgba(17,24,39,1);
+}
+.edgeInsertClose {
+  color: #ef4444 !important;
+  border-color: #ef4444 !important;
+  margin-top: 4px;
+}
+.edgeInsertClose:hover {
+  background: #fef2f2 !important;
+}
+
+/* Active pan/select buttons */
+.activeBtn {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #111827 !important;
+}
+
+/* Floating Delete Selected Badge */
+.deleteFloatingBadge {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: #ef4444;
+  color: #ffffff;
+  border: 3px solid #111827;
+  box-shadow: 4px 4px 0px rgba(17,24,39,1);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.deleteFloatingBadge:hover {
+  background: #dc2626;
+  transform: translateX(-50%) translate(-1px, -1px);
+  box-shadow: 5px 5px 0px rgba(17,24,39,1);
+}
+.deleteFloatingBadge:active {
+  transform: translateX(-50%) translate(2px, 2px);
+  box-shadow: 2px 2px 0px rgba(17,24,39,1);
+}
+
