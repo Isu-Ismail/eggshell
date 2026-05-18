@@ -35,13 +35,13 @@ const importCSV = (file, fileId, onProgress) => {
               sanitized: sanitizeColumnName(f || `Column${i}`)
             }));
             
-            const colDefs = headers.map(h => `${h.sanitized} TEXT`).join(", ");
+            const colDefs = headers.map(h => `"${h.sanitized}" TEXT`).join(", ");
             await db.sql(`CREATE TABLE ${fileId} (__row_id INTEGER PRIMARY KEY AUTOINCREMENT, ${colDefs});`);
             isFirstChunk = false;
           }
 
           if (results.data.length > 0) {
-            const colNames = headers.map(h => h.sanitized).join(", ");
+            const colNames = headers.map(h => `"${h.sanitized}"`).join(", ");
             const valuesArr = results.data.map(row => {
                const vals = headers.map(h => {
                  const val = row[h.original] || "";
@@ -102,13 +102,13 @@ const importXLSX = async (file, fileId, onProgress) => {
     rowCount++;
   });
 
-  const colDefs = headers.map(h => `${h.sanitized} TEXT`).join(", ");
+  const colDefs = headers.map(h => `"${h.sanitized}" TEXT`).join(", ");
   await db.sql(`CREATE TABLE ${fileId} (__row_id INTEGER PRIMARY KEY AUTOINCREMENT, ${colDefs});`);
 
   const batchSize = 500;
   for (let i = 0; i < dataRows.length; i += batchSize) {
     const batch = dataRows.slice(i, i + batchSize);
-    const colNames = headers.map(h => h.sanitized).join(", ");
+    const colNames = headers.map(h => `"${h.sanitized}"`).join(", ");
     
     const valuesArr = batch.map(row => {
        const vals = row.map(v => `'${String(v).replace(/'/g, "''")}'`);

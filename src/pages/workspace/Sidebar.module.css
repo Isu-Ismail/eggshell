@@ -517,6 +517,24 @@
   background: rgba(239, 68, 68, 0.1);
 }
 
+.editBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.editBtn:hover {
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
 /* Sidebar Footer Help button styling */
 .tutorialBtnWrapper {
   width: 272px;

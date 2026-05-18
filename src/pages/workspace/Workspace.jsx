@@ -53,7 +53,7 @@ const edgeTypes = {
 function WorkspaceContent() {
   const { 
     nodes, edges, onNodesChange, onEdgesChange, onConnect, removeEdge, addFile,
-    setNodes, setEdges, inspectorNodeId, setInspectorNodeId, edgeInsertMenu, setEdgeInsertMenu,
+    setNodes, setEdges, setFiles, files, inspectorNodeId, setInspectorNodeId, edgeInsertMenu, setEdgeInsertMenu,
     drawingWire, setDrawingWire, cursorPos, setCursorPos,
     startDrawingWire, addWaypointToDrawingWire, completeDrawingWire, cancelDrawingWire,
     hiddenOutputs
@@ -65,6 +65,10 @@ function WorkspaceContent() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [isWhyModalOpen, setIsWhyModalOpen] = useState(false);
+
+  const handleOpenEditor = useCallback((fileId) => {
+    window.open(`?page=editor&fileId=${fileId}`, '_blank');
+  }, []);
 
   // Memoize nodeTypes & edgeTypes to avoid recreate warning
   const nodeTypesMemo = useMemo(() => nodeTypes, []);
@@ -256,7 +260,7 @@ function WorkspaceContent() {
     setupTestData();
   }, [execute]);
 
-  // Sync DB / State Server to communicate with the External Preview Tab
+  // Sync DB / State Server to communicate with the External Preview / Editor Tabs
   useEffect(() => {
     const channel = new BroadcastChannel('stitcher_sync');
     
@@ -264,7 +268,11 @@ function WorkspaceContent() {
       const { type, id, query } = event.data;
       
       if (type === 'REQUEST_STATE') {
-        channel.postMessage({ type: 'STATE_UPDATE', nodes, edges });
+        channel.postMessage({ type: 'STATE_UPDATE', nodes, edges, files });
+      } else if (type === 'SYNC_WORKSPACE') {
+        if (event.data.files) setFiles(event.data.files);
+        if (event.data.nodes) setNodes(event.data.nodes);
+        if (event.data.edges) setEdges(event.data.edges);
       } else if (type === 'EXECUTE_QUERY') {
         try {
           const res = await execute(query);
@@ -276,12 +284,12 @@ function WorkspaceContent() {
       }
     };
 
-    channel.postMessage({ type: 'STATE_UPDATE', nodes, edges });
+    channel.postMessage({ type: 'STATE_UPDATE', nodes, edges, files });
 
     return () => {
       channel.close();
     };
-  }, [nodes, edges, execute]);
+  }, [nodes, edges, files, execute, setFiles, setNodes, setEdges]);
 
   // --- Click-to-Route event triggers on Canvas Pane ---
   const handlePaneMouseMove = useCallback((event) => {
@@ -404,6 +412,7 @@ function WorkspaceContent() {
         onOpenTutorial={() => setIsTutorialOpen(true)}
         onOpenAiModal={() => setIsAiModalOpen(true)}
         onOpenWhyChoose={() => setIsWhyModalOpen(true)}
+        onOpenEditor={handleOpenEditor}
       />
       
       {isSidebarCollapsed && (

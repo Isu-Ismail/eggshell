@@ -142,7 +142,12 @@ export const ProjectProvider = ({ children }) => {
   }, [drawingWire]);
 
   const addFile = (fileData) => {
-    setFiles(prev => [...prev, fileData]);
+    const fileWithOriginals = {
+      ...fileData,
+      originalHeaders: JSON.parse(JSON.stringify(fileData.headers)),
+      originalRowCount: fileData.rowCount
+    };
+    setFiles(prev => [...prev, fileWithOriginals]);
     
     const newNode = {
       id: fileData.id,
@@ -404,6 +409,38 @@ export const ProjectProvider = ({ children }) => {
     }, null, 2);
   }, [files]);
 
+  const renameFileColumn = useCallback((fileId, oldSanitized, newSanitized, newOriginal, newHeaders) => {
+    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, headers: newHeaders } : f));
+    setNodes(prev => prev.map(n => n.id === fileId ? { ...n, data: { ...n.data, headers: newHeaders } } : n));
+    setEdges(prev => prev.map(e => (e.source === fileId && e.sourceHandle === oldSanitized) ? { ...e, sourceHandle: newSanitized } : e));
+  }, []);
+
+  const deleteFileColumn = useCallback((fileId, deletedSanitized, newHeaders) => {
+    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, headers: newHeaders } : f));
+    setNodes(prev => prev.map(n => n.id === fileId ? { ...n, data: { ...n.data, headers: newHeaders } } : n));
+    deleteConnectionPath(fileId, deletedSanitized, 'source');
+  }, [deleteConnectionPath]);
+
+  const updateFileRowCount = useCallback((fileId, newRowCount) => {
+    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, rowCount: newRowCount } : f));
+  }, []);
+
+  const restoreFileOriginals = useCallback((fileId, originalHeaders, originalRowCount) => {
+    setFiles(prev => prev.map(f => f.id === fileId ? {
+      ...f,
+      headers: JSON.parse(JSON.stringify(originalHeaders)),
+      rowCount: originalRowCount
+    } : f));
+    
+    setNodes(prev => prev.map(n => n.id === fileId ? {
+      ...n,
+      data: {
+        ...n.data,
+        headers: JSON.parse(JSON.stringify(originalHeaders))
+      }
+    } : n));
+  }, []);
+
   return (
     <ProjectContext.Provider value={{
       files, nodes, edges, onNodesChange, onEdgesChange, onConnect, 
@@ -411,7 +448,7 @@ export const ProjectProvider = ({ children }) => {
       addOutputNode, updateOutputNodeName, deleteOutputNode,
       addOutputColumn, updateOutputColumn, deleteOutputColumn, addTransformNode,
       addFilterNode, addJoinNode, addConditionNode,
-      removeEdge, setNodes, setEdges,
+      removeEdge, setNodes, setEdges, setFiles,
       inspectorNodeId, setInspectorNodeId,
       edgeInsertMenu, setEdgeInsertMenu, onEdgeInsertClick,
       getAiSchemaJson, applyJsonConfig,
@@ -419,7 +456,8 @@ export const ProjectProvider = ({ children }) => {
       drawingWire, setDrawingWire, cursorPos, setCursorPos,
       startDrawingWire, addWaypointToDrawingWire, completeDrawingWire, cancelDrawingWire,
       deleteConnectionPath, addOutputNodeFromTemplate, duplicateOutputNode, copyColumnsFromSource,
-      hiddenOutputs, toggleOutputVisibility, exportPipelineConfig, exportFullPipelineConfig, autoArrangeCanvas
+      hiddenOutputs, toggleOutputVisibility, exportPipelineConfig, exportFullPipelineConfig, autoArrangeCanvas,
+      renameFileColumn, deleteFileColumn, updateFileRowCount, restoreFileOriginals
     }}>
       {children}
     </ProjectContext.Provider>

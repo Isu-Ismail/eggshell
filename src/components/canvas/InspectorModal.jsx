@@ -18,7 +18,61 @@ const getUpstreamSourceInfo = (currNodeId, currentEdges, currentNodes) => {
     };
   }
 
-  return getUpstreamSourceInfo(sourceNode.id, currentEdges, currentNodes);
+  if (sourceNode.type === 'waypointNode') {
+    return getUpstreamSourceInfo(sourceNode.id, currentEdges, currentNodes);
+  }
+
+  const dstInfo = getDownstreamOutputInfo(sourceNode.id, currentEdges, currentNodes);
+  const friendlyName = dstInfo.length > 0 ? dstInfo[0].columnName : sourceNode.id;
+
+  let typeLabel = 'Block';
+  if (sourceNode.type === 'transformNode') typeLabel = 'Transform';
+  if (sourceNode.type === 'conditionNode') typeLabel = 'Condition';
+  if (sourceNode.type === 'filterNode') typeLabel = 'Filter';
+  if (sourceNode.type === 'joinNode') typeLabel = 'Join';
+
+  return {
+    fileName: `${typeLabel} (${sourceNode.id})`,
+    columnName: friendlyName
+  };
+};
+
+// Recursive helper to trace ALL upstream raw source file columns feeding into a node (supporting multiple inputs)
+const getUpstreamSourcesInfo = (currNodeId, currentEdges, currentNodes) => {
+  const incomingEdges = currentEdges.filter(e => e.target === currNodeId && e.targetHandle === 'input');
+  
+  const traceUpstream = (edge) => {
+    const sourceNode = currentNodes.find(n => n.id === edge.source);
+    if (!sourceNode) return null;
+
+    if (sourceNode.type === 'sourceNode') {
+      return {
+        fileName: sourceNode.data.fileName,
+        columnName: edge.sourceHandle
+      };
+    }
+
+    if (sourceNode.type === 'waypointNode') {
+      const upstreamEdge = currentEdges.find(e => e.target === sourceNode.id && e.targetHandle === 'input');
+      if (upstreamEdge) return traceUpstream(upstreamEdge);
+    }
+
+    const dstInfo = getDownstreamOutputInfo(sourceNode.id, currentEdges, currentNodes);
+    const friendlyName = dstInfo.length > 0 ? dstInfo[0].columnName : sourceNode.id;
+
+    let typeLabel = 'Block';
+    if (sourceNode.type === 'transformNode') typeLabel = 'Transform';
+    if (sourceNode.type === 'conditionNode') typeLabel = 'Condition';
+    if (sourceNode.type === 'filterNode') typeLabel = 'Filter';
+    if (sourceNode.type === 'joinNode') typeLabel = 'Join';
+
+    return {
+      fileName: `${typeLabel} (${sourceNode.id})`,
+      columnName: friendlyName
+    };
+  };
+
+  return incomingEdges.map(traceUpstream).filter(Boolean);
 };
 
 // Recursive helper to trace the downstream destination output columns targeted by a node
@@ -68,6 +122,12 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
   const [localNewColumnName, setLocalNewColumnName] = useState('amount');
   const [localRules, setLocalRules] = useState([]);
   const [localElseVal, setLocalElseVal] = useState('0');
+  
+  // Custom filter pass-through index
+  const [localPassThroughIndex, setLocalPassThroughIndex] = useState(0);
+
+  // Custom variable alias
+  const [localCustomName, setLocalCustomName] = useState('');
 
   // Synchronize local edit buffer state only when the active node changes
   useEffect(() => {
@@ -80,6 +140,8 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
       setLocalNewColumnName(activeNode.data.newColumnName || 'output_col');
       setLocalRules(activeNode.data.rules || [{ operator: '=', value: 'value', thenVal: 'result' }]);
       setLocalElseVal(activeNode.data.elseVal || 'default');
+      setLocalPassThroughIndex(activeNode.data.passThroughIndex || 0);
+      setLocalCustomName(activeNode.data.customName || '');
     }
   }, [nodeId, nodes]);
 
@@ -103,8 +165,20 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
     setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, condition: val } } : n));
   };
 
+  const handlePassThroughIndexChange = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setLocalPassThroughIndex(val);
+    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, passThroughIndex: val } } : n));
+  };
+
+  const handleCustomNameChange = (e) => {
+    const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '');
+    setLocalCustomName(val);
+    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, customName: val } } : n));
+  };
+
   const handleNewColumnNameChange = (e) => {
-    const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const val = e.target.value.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
     setLocalNewColumnName(val);
     
     setNodes(nds => nds.map(n => {
@@ -211,11 +285,12 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
   };
 
   const sourceInfo = getUpstreamSourceInfo(node.id, edges, nodes);
+  const upstreamSources = getUpstreamSourcesInfo(node.id, edges, nodes);
   const outputInfoList = getDownstreamOutputInfo(node.id, edges, nodes);
 
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
         <div className={styles.header}>
           <h3 className={styles.title}>
             {getNodeIcon()} Inspector: {
@@ -241,12 +316,28 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
               <h5 className={styles.connectionsCardTitle}>Active Connection Path</h5>
               <div className={styles.connectionsGrid}>
                 <div className={styles.connectionSide}>
-                  <span className={styles.sideLabel}>Source Input</span>
-                  {sourceInfo ? (
-                    <div className={styles.sideValue}>
-                      <span className={styles.fileLabel} title={sourceInfo.fileName}>{sourceInfo.fileName}</span>
-                      <span className={styles.colLabel}>↳ {sourceInfo.columnName}</span>
-                    </div>
+                  <span className={styles.sideLabel}>Source Input(s)</span>
+                  {upstreamSources.length > 0 ? (
+                    upstreamSources.map((src, idx) => (
+                      <div key={idx} className={styles.sideValue} style={{ display: 'flex', alignItems: 'center', marginBottom: '6px', gap: '6px' }}>
+                        <span style={{
+                          backgroundColor: '#f3e8ff',
+                          color: '#7e22ce',
+                          border: '1px solid #d8b4fe',
+                          borderRadius: '4px',
+                          padding: '1px 6px',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          fontFamily: 'monospace'
+                        }}>
+                          {src.customName ? `{${src.customName}}` : `{col${idx + 1}}`}
+                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span className={styles.fileLabel} title={src.fileName}>{src.fileName.replace(/\.[^/.]+$/, "")}</span>
+                          <span className={styles.colLabel} style={{ fontSize: '11px', color: '#6b7280' }}>↳ {src.columnName}</span>
+                        </div>
+                      </div>
+                    ))
                   ) : (
                     <span className={styles.sideEmpty}>Not connected</span>
                   )}
@@ -274,6 +365,22 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
           {/* Edit Panel */}
           <div className={styles.editPanel}>
             <h4 className={styles.panelTitle}>Pipeline Configuration</h4>
+
+            {node.type !== 'joinNode' && (
+              <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                <label className={styles.label}>Custom Variable Name (Alias):</label>
+                <input 
+                  type="text" 
+                  className={styles.input} 
+                  value={localCustomName || ''} 
+                  onChange={handleCustomNameChange}
+                  placeholder="e.g. percentage_calculator (only letters, numbers, and underscores)"
+                />
+                <span className={styles.hint}>
+                  You can reference this block's calculated value downstream as <code>{`{${localCustomName || 'alias'}}`}</code> (no spaces, only letters, numbers, and underscores).
+                </span>
+              </div>
+            )}
 
             {node.type === 'transformNode' && (
               <div className={styles.formGroup}>
@@ -306,26 +413,65 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
                       className={styles.input} 
                       value={localScript || ''} 
                       onChange={handleScriptChange}
-                      placeholder="e.g. {col} || ' (STUDENT)'"
-                      title="Use {col} to represent input values"
+                      placeholder="e.g. {col1} || ' ' || {col2}"
+                      title="Use {col1}, {col2} to represent input values"
                     />
-                    <span className={styles.hint}>Tip: Use standard SQLite syntax. Reference input column using <code>{`{col}`}</code>.</span>
+                    <span className={styles.hint}>
+                      Tip: Reference input columns using <code>{`{col1}`}</code>, <code>{`{col2}`}</code>, etc. matching the order in the Connection Path above!
+                      {upstreamSources.length <= 1 && <span> (Or simply use <code>{`{col}`}</code>).</span>}
+                    </span>
                   </div>
                 )}
               </div>
             )}
 
             {node.type === 'filterNode' && (
-              <div className={styles.formGroup}>
-                <label className={styles.label}>WHERE Filter Condition:</label>
-                <input 
-                  type="text" 
-                  className={styles.input} 
-                  value={localCondition || ''} 
-                  onChange={handleConditionChange}
-                  placeholder="e.g. {col} = 'value'"
-                />
-                <span className={styles.hint}>Use <code>{`{col}`}</code> to reference mapped column values. e.g. <code>{`{col} = 'value'`}</code> or <code>{`{col} > 18`}</code>.</span>
+              <div className={styles.formGroup} style={{ gap: '14px' }}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>WHERE Filter Condition:</label>
+                  <input 
+                    type="text" 
+                    className={styles.input} 
+                    value={localCondition || ''} 
+                    onChange={handleConditionChange}
+                    placeholder="e.g. {col1} > {col2}"
+                  />
+                  <span className={styles.hint}>
+                    Tip: Reference inputs using <code>{`{col1}`}</code>, <code>{`{col2}`}</code>, etc. matching the order in the Connection Path above!
+                    {upstreamSources.length <= 1 && <span> (Or simply use <code>{`{col}`}</code>).</span>}
+                  </span>
+                </div>
+
+                {upstreamSources.length > 1 && (
+                  <div className={styles.formGroup} style={{ marginTop: '4px' }}>
+                    <label className={styles.label}>Select Output Flow Column:</label>
+                    <select 
+                      className={styles.select} 
+                      value={localPassThroughIndex || 0} 
+                      onChange={handlePassThroughIndexChange}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #d1d5db',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        color: '#374151',
+                        backgroundColor: '#fff'
+                      }}
+                    >
+                      {upstreamSources.map((src, idx) => (
+                        <option key={idx} value={idx}>
+                          {src.customName 
+                            ? `{col${idx + 1}} / {${src.customName}} — ${src.columnName} (${src.fileName.replace(/\.[^/.]+$/, "")})`
+                            : `{col${idx + 1}} — ${src.columnName} (${src.fileName.replace(/\.[^/.]+$/, "")})`}
+                        </option>
+                      ))}
+                    </select>
+                    <span className={styles.hint}>
+                      Since multiple columns feed into this filter, specify which one should flow out to downstream blocks.
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

@@ -1,26 +1,34 @@
-// Recursive resolver to trace handles back through transformation/join/filter blocks to raw columns
 const resolveSourceColumn = (nodeId, handleId, state) => {
-  const incomingEdge = state.edges.find(e => e.target === nodeId && e.targetHandle === handleId);
-  if (!incomingEdge) return null;
-
-  const sourceNode = state.nodes.find(n => n.id === incomingEdge.source);
-  if (!sourceNode) return null;
-
-  // Case A: Raw Source File Table
-  if (sourceNode.type === 'sourceNode') {
-    return {
-      table: sourceNode.id,
-      column: incomingEdge.sourceHandle,
-      expression: `"${sourceNode.id}"."${incomingEdge.sourceHandle}"`
-    };
-  }
+  const currentNode = state.nodes.find(n => n.id === nodeId);
+  if (!currentNode) return null;
 
   // Case B: Transform Node Block
-  if (sourceNode.type === 'transformNode') {
-    const parentSource = resolveSourceColumn(sourceNode.id, 'input', state);
-    if (!parentSource) return null;
+  if (currentNode.type === 'transformNode') {
+    const incomingEdges = state.edges.filter(e => e.target === currentNode.id && e.targetHandle === 'input');
+    
+    const resolvedInputs = incomingEdges.map(edge => {
+      const parentNode = state.nodes.find(n => n.id === edge.source);
+      if (!parentNode) return null;
+      if (parentNode.type === 'sourceNode') {
+        return {
+          table: parentNode.id,
+          column: edge.sourceHandle,
+          expression: `"${parentNode.id}"."${edge.sourceHandle}"`,
+          customName: parentNode.data?.customName || null
+        };
+      } else {
+        const resolved = resolveSourceColumn(parentNode.id, 'input', state);
+        if (resolved && parentNode.data?.customName) {
+          resolved.customName = parentNode.data.customName;
+        }
+        return resolved;
+      }
+    }).filter(Boolean);
 
-    const type = sourceNode.data.type || 'UPPER';
+    if (resolvedInputs.length === 0) return null;
+    const parentSource = resolvedInputs[0];
+
+    const type = currentNode.data.type || 'UPPER';
     let expression = parentSource.expression;
 
     if (type === 'UPPER') {
@@ -32,24 +40,142 @@ const resolveSourceColumn = (nodeId, handleId, state) => {
     } else if (type === 'SERIAL_NO') {
       expression = `ROW_NUMBER() OVER()`;
     } else if (type === 'CUSTOM') {
-      const script = sourceNode.data.script || '{col}';
-      expression = script.replace(/{col}/g, parentSource.expression);
+      let script = currentNode.data.script || '{col}';
+      
+      // Auto-translate clean file names, full file names, or alias references to physical SQLite table IDs!
+      const sourceNodes = state.nodes.filter(n => n.type === 'sourceNode');
+      sourceNodes.forEach(n => {
+        const fullFileName = n.data?.fileName || '';
+        const cleanFileName = fullFileName.replace(/\.[^/.]+$/, "");
+        
+        // Escape special regex characters in filenames
+        const escapeRegex = (string) => string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const escapedFull = escapeRegex(fullFileName);
+        const escapedClean = escapeRegex(cleanFileName);
+        
+        // Build regexes to match either inside quotes or raw word boundary
+        const patterns = [
+          new RegExp(`"${escapedFull}"`, 'g'),
+          new RegExp(`"${escapedClean}"`, 'g'),
+          new RegExp(`\\b${escapedFull}\\b`, 'g'),
+          new RegExp(`\\b${escapedClean}\\b`, 'g')
+        ];
+        
+        patterns.forEach(pattern => {
+          script = script.replace(pattern, `"${n.id}"`);
+        });
+
+        // Auto-sanitize custom script column references for this table
+        if (n.data?.headers && Array.isArray(n.data.headers)) {
+          n.data.headers.forEach(h => {
+            const escOrig = escapeRegex(h.original);
+            const escSan = escapeRegex(h.sanitized);
+            
+            const colPatterns = [
+              new RegExp(`"${n.id}"\\."${escOrig}"`, 'gi'),
+              new RegExp(`"${n.id}"\\.${escOrig}`, 'gi'),
+              new RegExp(`"${n.id}"\\."${escSan}"`, 'gi'),
+              new RegExp(`"${n.id}"\\.${escSan}`, 'gi')
+            ];
+            
+            colPatterns.forEach(pat => {
+              script = script.replace(pat, `"${n.id}"."${h.sanitized}"`);
+            });
+          });
+        }
+      });
+      
+      expression = script;
+      resolvedInputs.forEach((inp, idx) => {
+        const key = `{col${idx + 1}}`;
+        expression = expression.replaceAll(key, inp.expression);
+        if (inp.customName) {
+          expression = expression.replaceAll(`{${inp.customName}}`, inp.expression);
+        }
+      });
+      expression = expression.replaceAll('{col}', parentSource.expression);
     }
 
     return {
       table: parentSource.table,
       column: parentSource.column,
-      expression
+      expression,
+      customName: currentNode.data?.customName || null
     };
   }
 
+  // Case C: Filter Node Block
+  if (currentNode.type === 'filterNode') {
+    const incomingEdges = state.edges.filter(e => e.target === currentNode.id && e.targetHandle === 'input');
+    
+    const resolvedInputs = incomingEdges.map(edge => {
+      const parentNode = state.nodes.find(n => n.id === edge.source);
+      if (!parentNode) return null;
+      if (parentNode.type === 'sourceNode') {
+        return {
+          table: parentNode.id,
+          column: edge.sourceHandle,
+          expression: `"${parentNode.id}"."${edge.sourceHandle}"`,
+          customName: parentNode.data?.customName || null
+        };
+      } else {
+        const resolved = resolveSourceColumn(parentNode.id, 'input', state);
+        if (resolved && parentNode.data?.customName) {
+          resolved.customName = parentNode.data.customName;
+        }
+        return resolved;
+      }
+    }).filter(Boolean);
+
+    if (resolvedInputs.length === 0) return null;
+    const passThroughIndex = parseInt(currentNode.data?.passThroughIndex || 0, 10);
+    const parentSource = resolvedInputs[passThroughIndex] || resolvedInputs[0];
+
+    // Register active where condition on the state
+    const conditionTemplate = currentNode.data.condition || "{col} = ''";
+    
+    let compiledCondition = conditionTemplate;
+    resolvedInputs.forEach((inp, idx) => {
+      const key = `{col${idx + 1}}`;
+      compiledCondition = compiledCondition.replaceAll(key, inp.expression);
+      if (inp.customName) {
+        compiledCondition = compiledCondition.replaceAll(`{${inp.customName}}`, inp.expression);
+      }
+    });
+    compiledCondition = compiledCondition.replaceAll('{col}', parentSource.expression);
+    
+    state.filters.push(compiledCondition);
+
+    // Pass through column expression unchanged
+    return parentSource;
+  }
+
   // Case CX: Condition Node Block
-  if (sourceNode.type === 'conditionNode') {
-    const parentSource = resolveSourceColumn(sourceNode.id, 'input', state);
+  if (currentNode.type === 'conditionNode') {
+    const incomingEdge = state.edges.find(e => e.target === currentNode.id && e.targetHandle === 'input');
+    if (!incomingEdge) return null;
+
+    const parentNode = state.nodes.find(n => n.id === incomingEdge.source);
+    if (!parentNode) return null;
+
+    let parentSource = null;
+    if (parentNode.type === 'sourceNode') {
+      parentSource = {
+        table: parentNode.id,
+        column: incomingEdge.sourceHandle,
+        expression: `"${parentNode.id}"."${incomingEdge.sourceHandle}"`,
+        customName: parentNode.data?.customName || null
+      };
+    } else {
+      parentSource = resolveSourceColumn(parentNode.id, 'input', state);
+      if (parentSource && parentNode.data?.customName) {
+        parentSource.customName = parentNode.data.customName;
+      }
+    }
     if (!parentSource) return null;
 
-    const rules = sourceNode.data.rules || [];
-    const elseVal = sourceNode.data.elseVal || '0';
+    const rules = currentNode.data.rules || [];
+    const elseVal = currentNode.data.elseVal || '0';
     
     let caseWhenParts = [];
     rules.forEach(rule => {
@@ -83,29 +209,48 @@ const resolveSourceColumn = (nodeId, handleId, state) => {
     return {
       table: parentSource.table,
       column: parentSource.column,
-      expression
+      expression,
+      customName: currentNode.data?.customName || null
     };
   }
 
-  // Case C: Filter Node Block
-  if (sourceNode.type === 'filterNode') {
-    const parentSource = resolveSourceColumn(sourceNode.id, 'input', state);
-    if (!parentSource) return null;
-
-    // Register active where condition on the state
-    const conditionTemplate = sourceNode.data.condition || "{col} = ''";
-    const compiledCondition = conditionTemplate.replace(/{col}/g, parentSource.expression);
-    state.filters.push(compiledCondition);
-
-    // Pass through column expression unchanged
-    return parentSource;
-  }
-
   // Case D: Join Node Block
-  if (sourceNode.type === 'joinNode') {
-    // Resolve BOTH base and matching key wires
-    const baseSource = resolveSourceColumn(sourceNode.id, 'base', state);
-    const matchSource = resolveSourceColumn(sourceNode.id, 'match', state);
+  if (currentNode.type === 'joinNode') {
+    // Resolve base parent directly
+    const baseEdge = state.edges.find(e => e.target === currentNode.id && e.targetHandle === 'base');
+    let baseSource = null;
+    if (baseEdge) {
+      const baseParent = state.nodes.find(n => n.id === baseEdge.source);
+      if (baseParent) {
+        if (baseParent.type === 'sourceNode') {
+          baseSource = {
+            table: baseParent.id,
+            column: baseEdge.sourceHandle,
+            expression: `"${baseParent.id}"."${baseEdge.sourceHandle}"`
+          };
+        } else {
+          baseSource = resolveSourceColumn(baseParent.id, 'input', state);
+        }
+      }
+    }
+
+    // Resolve match parent directly
+    const matchEdge = state.edges.find(e => e.target === currentNode.id && e.targetHandle === 'match');
+    let matchSource = null;
+    if (matchEdge) {
+      const matchParent = state.nodes.find(n => n.id === matchEdge.source);
+      if (matchParent) {
+        if (matchParent.type === 'sourceNode') {
+          matchSource = {
+            table: matchParent.id,
+            column: matchEdge.sourceHandle,
+            expression: `"${matchParent.id}"."${matchEdge.sourceHandle}"`
+          };
+        } else {
+          matchSource = resolveSourceColumn(matchParent.id, 'input', state);
+        }
+      }
+    }
 
     if (baseSource && matchSource) {
       // Register custom Join relation
@@ -122,11 +267,48 @@ const resolveSourceColumn = (nodeId, handleId, state) => {
   }
 
   // Case E: Waypoint / Route Node Block
-  if (sourceNode.type === 'waypointNode') {
-    return resolveSourceColumn(sourceNode.id, 'input', state);
+  if (currentNode.type === 'waypointNode') {
+    const incomingEdge = state.edges.find(e => e.target === currentNode.id && e.targetHandle === 'input');
+    if (!incomingEdge) return null;
+    const parentNode = state.nodes.find(n => n.id === incomingEdge.source);
+    if (!parentNode) return null;
+    if (parentNode.type === 'sourceNode') {
+      return {
+        table: parentNode.id,
+        column: incomingEdge.sourceHandle,
+        expression: `"${parentNode.id}"."${incomingEdge.sourceHandle}"`,
+        customName: parentNode.data?.customName || null
+      };
+    } else {
+      const resolved = resolveSourceColumn(parentNode.id, 'input', state);
+      if (resolved && parentNode.data?.customName) {
+        resolved.customName = parentNode.data.customName;
+      }
+      return resolved;
+    }
   }
 
-  return null;
+  // Default: We are resolving a raw output column, trace upstream!
+  const incomingEdge = state.edges.find(e => e.target === nodeId && e.targetHandle === handleId);
+  if (!incomingEdge) return null;
+
+  const sourceNode = state.nodes.find(n => n.id === incomingEdge.source);
+  if (!sourceNode) return null;
+
+  if (sourceNode.type === 'sourceNode') {
+    return {
+      table: sourceNode.id,
+      column: incomingEdge.sourceHandle,
+      expression: `"${sourceNode.id}"."${incomingEdge.sourceHandle}"`,
+      customName: sourceNode.data?.customName || null
+    };
+  } else {
+    const resolved = resolveSourceColumn(sourceNode.id, 'input', state);
+    if (resolved && sourceNode.data?.customName) {
+      resolved.customName = sourceNode.data.customName;
+    }
+    return resolved;
+  }
 };
 
 export const buildMappingQuery = (nodes, edges, outputNodeId) => {

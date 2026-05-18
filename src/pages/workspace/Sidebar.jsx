@@ -2,11 +2,11 @@ import { useRef, useState, useEffect } from 'react';
 import { importFileToDB } from '../../services/importService';
 import { useProject } from '../../context/ProjectContext';
 import { useSqlite } from '../../hooks/useSqlite';
-import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCircle, Sparkles, Filter, Link2, BrainCircuit, Eye, EyeOff, ListChecks, Download, Settings2 } from 'lucide-react';
+import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCircle, Sparkles, Filter, Link2, BrainCircuit, Eye, EyeOff, ListChecks, Download, Settings2, Edit } from 'lucide-react';
 import { ConfirmModal, AlertModal } from '../../components/ui/Modal';
 import styles from './Sidebar.module.css';
 
-export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpenAiModal, onOpenWhyChoose }) {
+export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpenAiModal, onOpenWhyChoose, onOpenEditor }) {
   const fileInputRef = useRef(null);
   const outputTemplateRef = useRef(null);
   
@@ -46,6 +46,7 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
         const parsedData = await importFileToDB(file, (count) => {
           setProgress({ file: file.name, count });
         });
+        await execute(`CREATE TABLE IF NOT EXISTS backup_${parsedData.id} AS SELECT * FROM ${parsedData.id};`);
         addFile(parsedData);
       }
     } catch (err) {
@@ -82,6 +83,7 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
   const handleDelete = async (fileId) => {
     try {
       await execute(`DROP TABLE IF EXISTS ${fileId}`);
+      await execute(`DROP TABLE IF EXISTS backup_${fileId}`);
       removeFile(fileId);
     } catch (err) {
       console.error("Delete err", err);
@@ -97,6 +99,7 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
     try {
       for (const f of files) {
         await execute(`DROP TABLE IF EXISTS ${f.id}`);
+        await execute(`DROP TABLE IF EXISTS backup_${f.id}`);
       }
       clearAllFiles();
     } catch (err) {
@@ -288,6 +291,13 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
                 </div>
                 
                 <div className={styles.cardActions} onClick={e => e.stopPropagation()}>
+                  <button 
+                    className={styles.editBtn} 
+                    onClick={() => onOpenEditor(f.id)} 
+                    title="Edit File Data (Excel Editor)"
+                  >
+                    <Edit size={16} />
+                  </button>
                   <button 
                     className={`${styles.visibleBtn} ${isVisible ? styles.visibleActive : ''}`} 
                     onClick={(e) => toggleCanvasPresence(e, f.id, isVisible)}
