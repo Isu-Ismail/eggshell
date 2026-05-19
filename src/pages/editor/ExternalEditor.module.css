@@ -58,6 +58,34 @@
   margin-top: 2px;
 }
 
+.fileSelectDropdown {
+  background: #ffffff;
+  border: 2px solid #111827;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 12px;
+  color: #111827;
+  outline: none;
+  cursor: pointer;
+  box-shadow: 2px 2px 0px #111827;
+  transition: all 0.1s;
+  margin-top: 4px;
+  display: block;
+}
+
+.fileSelectDropdown:hover {
+  background: #f3e8ff;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px #111827;
+}
+
+.fileSelectDropdown:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px #111827;
+}
+
 .navbarRight {
   display: flex;
   align-items: center;

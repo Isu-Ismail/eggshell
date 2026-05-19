@@ -1,4 +1,4 @@
-import { Sparkles, Zap, AlertTriangle, Check, BookOpen, PlayCircle, HelpCircle, PlusCircle, UploadCloud, BrainCircuit, Download, ListChecks, Filter, Link2, Settings2 } from 'lucide-react';
+import { Sparkles, Zap, AlertTriangle, Check, BookOpen, PlayCircle, HelpCircle, PlusCircle, UploadCloud, BrainCircuit, Download, ListChecks, Filter, Link2, Settings2, Database } from 'lucide-react';
 import styles from './Workspace.module.css';
 
 export default function WhyChooseModal({ isOpen, onClose }) {
@@ -10,7 +10,7 @@ export default function WhyChooseModal({ isOpen, onClose }) {
         <div className={styles.whyHeader}>
           <div className={styles.whyTitleWrapper}>
             <Sparkles size={22} style={{ color: '#a855f7' }} />
-            <h3 className={styles.whyTitle}>Welcome to Melder!</h3>
+            <h3 className={styles.whyTitle}>Welcome to EggShell!</h3>
           </div>
           <button className={styles.whyCloseBtn} onClick={onClose} title="Close Welcome Screen">&times;</button>
         </div>
@@ -21,7 +21,7 @@ export default function WhyChooseModal({ isOpen, onClose }) {
             <div className={styles.welcomeIntroSection}>
               <h4>Your Visual Data Pipeline Builder</h4>
               <p>
-                We are thrilled to have you here! Melder is the ultimate visual workspace for data stitching, multi-sheet relational joins, smart row filtering, custom conditional column mappings, and fully private browser automation.
+                We are thrilled to have you here! EggShell is the ultimate visual workspace for data stitching, multi-sheet relational joins, smart row filtering, custom conditional column mappings, and fully private browser automation.
               </p>
             </div>
 
@@ -61,34 +61,10 @@ export default function WhyChooseModal({ isOpen, onClose }) {
                 </div>
 
                 <div className={styles.welcomeToolsItem}>
-                  <Sparkles size={16} style={{ color: '#ec4899' }} />
+                  <Database size={16} style={{ color: '#3b82f6' }} />
                   <div>
-                    <strong>Transform Block</strong>
-                    <span>Apply dynamic string modifications like UPPERCASE, lowercase, trim whitespace, automatic sequential Serial Numbers (1, 2, 3...), or custom SQL syntax (e.g. <code>{"REPLACE({col}, 'Enginering', 'Engineering')"}</code>).</span>
-                  </div>
-                </div>
-
-                <div className={styles.welcomeToolsItem}>
-                  <ListChecks size={16} style={{ color: '#f59e0b' }} />
-                  <div>
-                    <strong>Conditional Block</strong>
-                    <span>Map target column values using dynamic IF-ELSE condition logic across different source columns.</span>
-                  </div>
-                </div>
-
-                <div className={styles.welcomeToolsItem}>
-                  <Filter size={16} style={{ color: '#3b82f6' }} />
-                  <div>
-                    <strong>Filter Block</strong>
-                    <span>Filter sheet rows using visual query filter expressions (e.g. <code>{"{col} = 'value'"}</code>).</span>
-                  </div>
-                </div>
-
-                <div className={styles.welcomeToolsItem}>
-                  <Link2 size={16} style={{ color: '#6366f1' }} />
-                  <div>
-                    <strong>Join Block</strong>
-                    <span>Perform relational LEFT JOIN key operations to stitch columns across separate files.</span>
+                    <strong>Export Database & Collections</strong>
+                    <span>Export your stitched pipelines as multi-sheet Excel workbooks, standalone SQLite databases, SQL dump scripts, or separate CSV files.</span>
                   </div>
                 </div>
               </div>
@@ -96,14 +72,14 @@ export default function WhyChooseModal({ isOpen, onClose }) {
           </div>
           
           <div className={styles.whyShowcaseHeading}>
-            <Sparkles size={16} style={{ color: '#f59e0b' }} /> Why Melder Beats Excel
+            <Sparkles size={16} style={{ color: '#f59e0b' }} /> Why EggShell Beats Excel
           </div>
           
           <div className={styles.comparisonGrid}>
             <div className={styles.comparisonCard}>
               <div className={styles.comparisonHeader}>
                 <span className={styles.melderTag}>
-                  <Zap size={10} style={{ fill: '#166534' }} /> Melder Way
+                  <Zap size={10} style={{ fill: '#166534' }} /> EggShell Way
                 </span>
                 <h5 className={styles.comparisonTitle}>SQLite Database Engine</h5>
               </div>
@@ -123,7 +99,7 @@ export default function WhyChooseModal({ isOpen, onClose }) {
             <div className={styles.comparisonCard}>
               <div className={styles.comparisonHeader}>
                 <span className={styles.melderTag}>
-                  <Zap size={10} style={{ fill: '#166534' }} /> Melder Way
+                  <Zap size={10} style={{ fill: '#166534' }} /> EggShell Way
                 </span>
                 <h5 className={styles.comparisonTitle}>Interactive Wiring Mappings</h5>
               </div>
@@ -143,7 +119,7 @@ export default function WhyChooseModal({ isOpen, onClose }) {
             <div className={styles.comparisonCard}>
               <div className={styles.comparisonHeader}>
                 <span className={styles.melderTag}>
-                  <Zap size={10} style={{ fill: '#166534' }} /> Melder Way
+                  <Zap size={10} style={{ fill: '#166534' }} /> EggShell Way
                 </span>
                 <h5 className={styles.comparisonTitle}>100% Client-Side Privacy</h5>
               </div>
@@ -163,7 +139,7 @@ export default function WhyChooseModal({ isOpen, onClose }) {
             <div className={styles.comparisonCard}>
               <div className={styles.comparisonHeader}>
                 <span className={styles.melderTag}>
-                  <Zap size={10} style={{ fill: '#166534' }} /> Melder Way
+                  <Zap size={10} style={{ fill: '#166534' }} /> EggShell Way
                 </span>
                 <h5 className={styles.comparisonTitle}>On-The-Go Compilation</h5>
               </div>
@@ -183,7 +159,7 @@ export default function WhyChooseModal({ isOpen, onClose }) {
             <div className={styles.comparisonCard}>
               <div className={styles.comparisonHeader}>
                 <span className={styles.melderTag}>
-                  <Zap size={10} style={{ fill: '#166534' }} /> Melder Way
+                  <Zap size={10} style={{ fill: '#166534' }} /> EggShell Way
                 </span>
                 <h5 className={styles.comparisonTitle}>Cross-Sheet Global Logic</h5>
               </div>
@@ -203,7 +179,7 @@ export default function WhyChooseModal({ isOpen, onClose }) {
             <div className={styles.comparisonCard}>
               <div className={styles.comparisonHeader}>
                 <span className={styles.melderTag}>
-                  <Zap size={10} style={{ fill: '#166534' }} /> Melder Way
+                  <Zap size={10} style={{ fill: '#166534' }} /> EggShell Way
                 </span>
                 <h5 className={styles.comparisonTitle}>AI-Assisted Auto Scripting</h5>
               </div>

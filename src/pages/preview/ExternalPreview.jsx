@@ -3,6 +3,7 @@ import { useSqlite } from '../../hooks/useSqlite';
 import { buildMappingQuery } from '../../services/sqlBuilder';
 import { Download, RefreshCw, Layers, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import { AlertModal } from '../../components/ui/Modal';
+import ExportModal from '../../components/canvas/ExportModal';
 import styles from './ExternalPreview.module.css';
 
 export default function ExternalPreview() {
@@ -19,14 +20,15 @@ export default function ExternalPreview() {
   const [alertState, setAlertState] = useState({ isOpen: false, title: '', message: '' });
   const [selectedOutputId, setSelectedOutputId] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isBulkExportModalOpen, setIsBulkExportModalOpen] = useState(false);
-  const [selectedBulkOutputIds, setSelectedBulkOutputIds] = useState({});
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportMode, setExportMode] = useState('csv');
 
   const channelRef = useRef(null);
   const pendingQueriesRef = useRef(new Map());
 
   const outputNodes = nodes.filter(n => n.type === 'outputNode');
   const sourceNodes = nodes.filter(n => n.type === 'sourceNode');
+  const mappedOutputNodes = outputNodes.filter(node => edges.some(e => e.target === node.id));
 
   // Initialize Broadcast Channel to listen to the Main tab
   useEffect(() => {
@@ -168,111 +170,7 @@ export default function ExternalPreview() {
     fetchPreview();
   }, [nodes, edges, limit, selectedOutputId, sortConfig]);
 
-  const handleExport = async () => {
-    if (!selectedOutputId) return;
-    const query = getBaseQuery(true); // Respects row sorting in database
-    if (!query) return;
-
-    let suggestedFileName = 'stitched_output.csv';
-    if (selectedOutputId.startsWith('source_')) {
-      const sourceId = selectedOutputId.replace('source_', '');
-      const srcNode = sourceNodes.find(n => n.id === sourceId);
-      suggestedFileName = srcNode 
-        ? `raw_${srcNode.data.fileName.trim().toLowerCase().replace(/\s+/g, '_')}`
-        : 'raw_source.csv';
-      if (!suggestedFileName.endsWith('.csv')) suggestedFileName += '.csv';
-    } else {
-      const selectedNode = outputNodes.find(n => n.id === selectedOutputId);
-      suggestedFileName = selectedNode 
-        ? `${selectedNode.data.name.trim().toLowerCase().replace(/\s+/g, '_')}.csv`
-        : 'stitched_output.csv';
-    }
-
-    try {
-      let fileHandle = null;
-      if (window.showSaveFilePicker) {
-        try {
-          fileHandle = await window.showSaveFilePicker({
-            suggestedName: suggestedFileName,
-            types: [{
-              description: 'CSV File',
-              accept: { 'text/csv': ['.csv'] },
-            }],
-          });
-        } catch (err) {
-          return;
-        }
-      }
-
-      const batchSize = 10000;
-      let offset = 0;
-      let hasMore = true;
-      let isFirstBatch = true;
-      let fullCsvBlobData = [];
-
-      let writable = null;
-      if (fileHandle) {
-        writable = await fileHandle.createWritable();
-      }
-
-      while (hasMore) {
-        const batchQuery = `${query} LIMIT ${batchSize} OFFSET ${offset}`;
-        const res = await executeQueryRemote(batchQuery);
-        
-        if (res && res.length > 0) {
-          let chunkStr = '';
-          const cols = columnOrder.length > 0 ? columnOrder : Object.keys(res[0]);
-          
-          if (isFirstBatch) {
-            chunkStr += cols.map(c => `"${c.replace(/"/g, '""')}"`).join(',') + '\n';
-            isFirstBatch = false;
-          }
-          
-          for (const row of res) {
-             const rowVals = cols.map(c => {
-                const str = String(row[c] ?? '');
-                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                  return `"${str.replace(/"/g, '""')}"`;
-                }
-                return str;
-             });
-             chunkStr += rowVals.join(',') + '\n';
-          }
-          
-          if (writable) {
-             await writable.write(chunkStr);
-          } else {
-             fullCsvBlobData.push(chunkStr);
-          }
-          
-          offset += batchSize;
-        } else {
-          hasMore = false;
-        }
-      }
-
-      if (writable) {
-        await writable.close();
-      } else {
-        const blob = new Blob(fullCsvBlobData, { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", suggestedFileName);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }
-    } catch (err) {
-      console.error("Export failure", err);
-      setAlertState({ 
-        isOpen: true, 
-        title: "Export Failed", 
-        message: err.message || "Failed to download CSV compiled output." 
-      });
-    }
-  };
+  // End of helper methods
 
   const moveColumn = (colName, direction) => {
     const idx = columnOrder.indexOf(colName);
@@ -308,129 +206,7 @@ export default function ExternalPreview() {
     }
   };
 
-  // Bulk Export Handlers
-  const handleToggleBulkNode = (nodeId) => {
-    setSelectedBulkOutputIds(prev => ({
-      ...prev,
-      [nodeId]: !prev[nodeId]
-    }));
-  };
-
-  const handleToggleAllBulk = () => {
-    const allMapped = outputNodes.filter(n => edges.some(e => e.target === n.id));
-    const anyUnselected = allMapped.some(n => !selectedBulkOutputIds[n.id]);
-    
-    const nextMap = {};
-    if (anyUnselected) {
-      allMapped.forEach(n => {
-        nextMap[n.id] = true;
-      });
-    }
-    setSelectedBulkOutputIds(nextMap);
-  };
-
-  const isAllBulkSelected = outputNodes
-    .filter(n => edges.some(e => e.target === n.id))
-    .every(n => !!selectedBulkOutputIds[n.id]);
-
-  const handleBulkExport = async () => {
-    const activeTargets = Object.entries(selectedBulkOutputIds)
-      .filter(([_, checked]) => checked)
-      .map(([id]) => id);
-
-    if (activeTargets.length === 0) {
-      setAlertState({ 
-        isOpen: true, 
-        title: "Export Cancelled", 
-        message: "Please select at least one visual output file to export." 
-      });
-      return;
-    }
-
-    setIsBulkExportModalOpen(false);
-    let successCount = 0;
-    let failedCount = 0;
-
-    for (const outputId of activeTargets) {
-      const query = buildMappingQuery(nodes, edges, outputId);
-      if (!query) {
-        failedCount++;
-        continue;
-      }
-
-      const node = outputNodes.find(n => n.id === outputId);
-      const suggestedFileName = node 
-        ? `${node.data.name.trim().toLowerCase().replace(/\s+/g, '_')}.csv`
-        : 'stitched_output.csv';
-
-      try {
-        const batchSize = 10000;
-        let offset = 0;
-        let hasMore = true;
-        let isFirstBatch = true;
-        let fullCsvBlobData = [];
-
-        while (hasMore) {
-          const batchQuery = `${query} LIMIT ${batchSize} OFFSET ${offset}`;
-          const res = await executeQueryRemote(batchQuery);
-          
-          if (res && res.length > 0) {
-            let chunkStr = '';
-            if (isFirstBatch) {
-              const cols = Object.keys(res[0]);
-              chunkStr += cols.map(c => `"${c.replace(/"/g, '""')}"`).join(',') + '\n';
-              isFirstBatch = false;
-            }
-            
-            for (const row of res) {
-               const rowVals = Object.values(row).map(v => {
-                  const str = String(v ?? '');
-                  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                    return `"${str.replace(/"/g, '""')}"`;
-                  }
-                  return str;
-               });
-               chunkStr += rowVals.join(',') + '\n';
-            }
-            
-            fullCsvBlobData.push(chunkStr);
-            offset += batchSize;
-          } else {
-            hasMore = false;
-          }
-        }
-
-        const blob = new Blob(fullCsvBlobData, { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", suggestedFileName);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        successCount++;
-      } catch (err) {
-        console.error(`Failed to remote export ${outputId}`, err);
-        failedCount++;
-      }
-    }
-
-    if (failedCount > 0) {
-      setAlertState({ 
-        isOpen: true, 
-        title: "Bulk Export Complete (with warnings)", 
-        message: `Successfully exported ${successCount} files. ${failedCount} files failed or had empty columns.` 
-      });
-    } else {
-      setAlertState({ 
-        isOpen: true, 
-        title: "Success", 
-        message: `Successfully exported all ${successCount} selected output files!` 
-      });
-    }
-  };
+  // End of bulk export logic
 
   const selectedNode = selectedOutputId.startsWith('source_')
     ? sourceNodes.find(n => n.id === selectedOutputId.replace('source_', ''))
@@ -499,23 +275,29 @@ export default function ExternalPreview() {
             </>
           )}
 
-          {outputNodes.length > 1 && (
-            <button 
-              className={styles.bulkLaunchBtn} 
-              onClick={() => setIsBulkExportModalOpen(true)}
-              title="Export multiple stitched outputs in bulk"
-            >
-              <Download size={16} /> Export Multiple
-            </button>
-          )}
+          <button 
+            className={styles.exportBtn} 
+            onClick={() => {
+              setExportMode('csv');
+              setIsExportModalOpen(true);
+            }}
+            disabled={mappedOutputNodes.length === 0}
+            title="Export compiled data layouts as CSV files or multi-sheet Excel workbooks"
+          >
+            <Download size={16} /> Export CSV / Excel
+          </button>
 
           <button 
             className={styles.exportBtn} 
-            onClick={handleExport} 
-            disabled={!selectedOutputId || !isSelectedNodeMapped}
-            title="Download currently active preview dataset matching your customized column order and sorting"
+            style={{ background: '#3b82f6' }}
+            onClick={() => {
+              setExportMode('sqlite');
+              setIsExportModalOpen(true);
+            }}
+            disabled={mappedOutputNodes.length === 0}
+            title="Export compiled data layouts as tables in SQLite databases or SQL dump scripts"
           >
-            <Download size={16} /> Export to CSV
+            <Download size={16} /> Export SQLite / SQL
           </button>
         </div>
       </header>
@@ -604,70 +386,15 @@ export default function ExternalPreview() {
         )}
       </main>
 
-      {/* Gorgeous Neobrutalist Bulk Export Selection Modal */}
-      {isBulkExportModalOpen && (
-        <div className={styles.bulkModalOverlay} onClick={() => setIsBulkExportModalOpen(false)}>
-          <div className={styles.bulkModal} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.bulkModalHeader}>Export Stitched Files</h3>
-            
-            <div className={styles.bulkSelectAllRow} onClick={handleToggleAllBulk}>
-              <input 
-                type="checkbox" 
-                checked={isAllBulkSelected} 
-                onChange={handleToggleAllBulk}
-                onClick={e => e.stopPropagation()}
-              />
-              <span className={styles.bulkSelectAllText}>
-                {isAllBulkSelected ? "Deselect All Outputs" : "Select All Outputs"}
-              </span>
-            </div>
-
-            <div className={styles.bulkList}>
-              {outputNodes.map(node => {
-                const isSelected = !!selectedBulkOutputIds[node.id];
-                const isMapped = edges.some(e => e.target === node.id);
-                return (
-                  <div 
-                    key={node.id} 
-                    className={styles.bulkItem} 
-                    onClick={() => isMapped && handleToggleBulkNode(node.id)}
-                    style={{ opacity: isMapped ? 1 : 0.5, cursor: isMapped ? 'pointer' : 'not-allowed' }}
-                  >
-                    <input 
-                      type="checkbox" 
-                      checked={isSelected}
-                      disabled={!isMapped} 
-                      onChange={() => handleToggleBulkNode(node.id)}
-                      onClick={e => e.stopPropagation()}
-                    />
-                    <span 
-                      className={styles.bulkItemLabel}
-                      title={node.data.name || 'Unnamed Output'}
-                    >
-                      {node.data.name || 'Unnamed Output'} {!isMapped && ' (Empty / Unmapped)'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className={styles.bulkActions}>
-              <button 
-                className={styles.bulkCancelBtn} 
-                onClick={() => setIsBulkExportModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className={styles.bulkExportBtn} 
-                onClick={handleBulkExport}
-              >
-                Export Selected
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExportModal 
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        mode={exportMode}
+        nodes={nodes}
+        edges={edges}
+        executeQuery={executeQueryRemote}
+        setAlertState={setAlertState}
+      />
 
       <AlertModal 
         isOpen={alertState.isOpen}

@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   // Add this line! Match it exactly to your GitHub repository name
-  base: '/Melder/',
+  base: '/eggshell/',
   plugins: [react()],
   server: {
     headers: {

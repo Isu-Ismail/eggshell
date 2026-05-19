@@ -36,10 +36,22 @@ export const exportFullPipelineConfig = (nodes, edges) => {
         });
         block.script = script;
       }
+    } else if (node.type === 'mathNode') {
+      block.expression = node.data?.expression || '{col1} + {col2}';
+      if (node.data?.roundDecimals !== undefined && node.data?.roundDecimals !== '') {
+        block.decimals = parseInt(node.data.roundDecimals, 10);
+        block.roundDecimals = parseInt(node.data.roundDecimals, 10);
+      }
     } else if (node.type === 'conditionNode') {
       block.newColumnName = node.data?.newColumnName || 'amount';
       block.rules = node.data?.rules || [];
       block.elseVal = node.data?.elseVal || '0';
+      if (block.rules.length === 1) {
+        const rule = block.rules[0];
+        block.expression = `{col} ${rule.operator || '='} ${rule.value || ''}`;
+        block.trueValue = rule.thenVal || '1';
+        block.falseValue = block.elseVal;
+      }
     } else if (node.type === 'filterNode') {
       let condition = node.data?.condition || '';
       Object.entries(cleanIdMap).forEach(([oldId, newId]) => {
@@ -130,7 +142,8 @@ export const applyJsonConfig = (configString, nodes, setNodes, setEdges, files =
           
           nodeData = {
             fileName: fileData ? fileData.fileName : (block.fileName || 'source.xlsx'),
-            headers: fileData ? fileData.headers : []
+            headers: fileData ? fileData.headers : [],
+            customName: block.customName || block.id
           };
           
           if (fileData) {
@@ -147,13 +160,41 @@ export const applyJsonConfig = (configString, nodes, setNodes, setEdges, files =
             customName: block.customName || ''
           };
           idMapping[block.id] = block.id;
+        } else if (block.type === 'mathNode') {
+          x = 420;
+          y = 100 + (midIdx++ * 140);
+          const blockDec = block.roundDecimals !== undefined ? block.roundDecimals : block.decimals;
+          nodeData = {
+            expression: block.expression || '{col1} + {col2}',
+            roundDecimals: blockDec !== undefined ? String(blockDec) : '',
+            customName: block.customName || ''
+          };
+          idMapping[block.id] = block.id;
         } else if (block.type === 'conditionNode') {
           x = 420;
           y = 100 + (midIdx++ * 140);
+          
+          let rules = block.rules || [];
+          let elseVal = block.elseVal || '0';
+          if (block.expression && (!block.rules || block.rules.length === 0)) {
+            const cleanExpr = block.expression.replace('{col}', '').trim();
+            const match = cleanExpr.match(/^([>=<!\w\s\-]+?)\s*(.+)$/);
+            if (match) {
+              const op = match[1].trim();
+              const val = match[2].trim().replace(/^['"]|['"]$/g, '');
+              rules = [{
+                operator: op,
+                value: val,
+                thenVal: block.trueValue || '1'
+              }];
+            }
+            elseVal = block.falseValue || '0';
+          }
+
           nodeData = {
-            newColumnName: block.newColumnName || 'amount',
-            rules: block.rules || [],
-            elseVal: block.elseVal || '0',
+            newColumnName: block.newColumnName || 'output_col',
+            rules,
+            elseVal,
             customName: block.customName || ''
           };
           idMapping[block.id] = block.id;
@@ -213,12 +254,20 @@ export const applyJsonConfig = (configString, nodes, setNodes, setEdges, files =
           finalSourceHandle = getSanitizedColumn(srcNode, srcHandle);
         }
 
+        const targetNode = newNodes.find(n => n.id === realTargetId);
+        let finalTargetHandle = targetHandle;
+        if (targetNode && (targetNode.type === 'mathNode' || targetNode.type === 'transformNode' || targetNode.type === 'filterNode' || targetNode.type === 'conditionNode')) {
+          if (targetHandle.startsWith('input')) {
+            finalTargetHandle = 'input';
+          }
+        }
+
         return {
           id: `edge_${Math.random().toString(36).substr(2, 9)}`,
           source: realSourceId,
           sourceHandle: finalSourceHandle,
           target: realTargetId,
-          targetHandle: targetHandle,
+          targetHandle: finalTargetHandle,
           type: 'buttonEdge',
           animated: true,
           style: { stroke: '#111827', strokeWidth: 3 }
@@ -271,7 +320,8 @@ export const applyJsonConfig = (configString, nodes, setNodes, setEdges, files =
             position: { x: 50, y: 100 + (newNodes.length * 280) },
             data: { 
               fileName: fileData.fileName,
-              headers: fileData.headers 
+              headers: fileData.headers,
+              customName: alias
             }
           };
           newNodes.push(matchingNode);
@@ -280,6 +330,9 @@ export const applyJsonConfig = (configString, nodes, setNodes, setEdges, files =
 
       if (matchingNode) {
         aliasToFileId[alias] = matchingNode.id;
+        if (matchingNode.data) {
+          matchingNode.data.customName = alias;
+        }
       } else {
         aliasToFileId[alias] = alias;
       }
@@ -406,6 +459,34 @@ export const applyJsonConfig = (configString, nodes, setNodes, setEdges, files =
               currentSourceHandle = 'output';
               currentX += 130;
             });
+          }
+
+          if (col.math) {
+            const blockId = `math_${Math.random().toString(36).substr(2, 9)}`;
+            newNodes.push({
+              id: blockId,
+              type: 'mathNode',
+              position: { x: currentX, y: yOffset },
+              data: {
+                expression: typeof col.math === 'object' ? (col.math.expression || '{col1} + {col2}') : col.math,
+                decimals: typeof col.math === 'object' ? (col.math.decimals || '') : ''
+              }
+            });
+
+            newEdges.push({
+              id: `edge_${Math.random().toString(36).substr(2, 9)}`,
+              source: currentSourceId,
+              sourceHandle: currentSourceHandle,
+              target: blockId,
+              targetHandle: 'input',
+              type: 'buttonEdge',
+              animated: true,
+              style: { stroke: '#111827', strokeWidth: 3 }
+            });
+
+            currentSourceId = blockId;
+            currentSourceHandle = 'output';
+            currentX += 130;
           }
 
           if (col.filter) {

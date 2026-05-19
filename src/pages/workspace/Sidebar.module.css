@@ -610,13 +610,47 @@
   box-shadow: 2px 2px 0px #111827;
 }
 
-/* Tools Dropdown Container */
-.toolsContainer {
+/* Dropdown Container */
+.dropdownContainer {
   position: relative;
   width: 100%;
 }
 
-/* Tools Button - Sleek Royal Blue Neobrutalist style */
+/* Blocks Button */
+.blocksBtn {
+  background: #a855f7; /* Vibrant Purple */
+  border: 3px solid #111827;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 4px 4px 0px #111827;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.blocksBtn:hover {
+  background: #9333ea;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #111827;
+}
+
+.blocksBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #111827;
+}
+
+/* Tools Button */
 .toolsBtn {
   background: #6366f1; /* Royal Indigo */
   border: 3px solid #111827;
@@ -650,8 +684,8 @@
   box-shadow: 1px 1px 0px #111827;
 }
 
-/* Dropdown list */
-.toolsDropdown {
+/* Dropdown Menu */
+.dropdownMenu {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
@@ -661,22 +695,22 @@
   border-radius: 8px;
   box-shadow: 4px 4px 0px #111827;
   z-index: 100;
-  overflow: hidden;
+  max-height: 250px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   padding: 6px;
   gap: 4px;
 }
 
-/* Individual list item buttons */
-.toolsDropdown button {
+.dropdownMenu button {
   background: transparent;
   border: none;
   border-radius: 6px;
   padding: 10px 14px;
   text-align: left;
   font-family: inherit;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 12px;
   color: #111827;
   text-transform: uppercase;
@@ -686,15 +720,60 @@
   align-items: center;
   gap: 8px;
   transition: background 0.1s, transform 0.1s;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.toolsDropdown button:hover {
+.dropdownMenu button:hover {
   background: #f3f4f6;
   transform: translateX(2px);
 }
 
-.toolsDropdown button:active {
+.dropdownMenu button:active {
   background: #e5e7eb;
+}
+
+/* Search Wrapper & Input styles */
+.searchWrapper {
+  padding: 4px 8px 8px 8px;
+  border-bottom: 2px solid #111827;
+  margin-bottom: 6px;
+}
+
+.searchBar {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #111827;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  outline: none;
+  box-sizing: border-box;
+  box-shadow: 2px 2px 0px #111827;
+  transition: all 0.1s;
+}
+
+.searchBar:focus {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px #111827;
+  background: #fafaf9;
+}
+
+.blocksList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.noResults {
+  padding: 12px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
 }
 
 /* Vibrant color accents for individual tool dropdown items */
@@ -721,3 +800,6 @@
 
 .toolItemJoin svg { color: #6366f1; } /* Indigo */
 .toolItemJoin:hover { background: rgba(99, 102, 241, 0.1) !important; color: #4f46e5 !important; }
+
+.toolItemMath svg { color: #3b82f6; } /* Blue */
+.toolItemMath:hover { background: rgba(59, 130, 246, 0.1) !important; color: #2563eb !important; }

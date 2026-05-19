@@ -45,9 +45,35 @@ export const ProjectProvider = ({ children }) => {
     []
   );
 
+  const syncBlockNameWithOutputColumn = useCallback((sourceId, targetNodeId, targetHandleId) => {
+    setNodes(prevNodes => prevNodes.map(n => {
+      if (n.id === sourceId) {
+        const targetNode = prevNodes.find(tn => tn.id === targetNodeId);
+        if (targetNode && targetNode.type === 'outputNode') {
+          const col = (targetNode.data.columns || []).find(c => c.id === targetHandleId);
+          if (col && col.name) {
+            if (n.type === 'conditionNode') {
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  newColumnName: col.name
+                }
+              };
+            }
+          }
+        }
+      }
+      return n;
+    }));
+  }, []);
+
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge({ ...params, type: 'buttonEdge' }, eds)), // Auto-connect with plus buttons!
-    []
+    (params) => {
+      setEdges((eds) => addEdge({ ...params, type: 'buttonEdge' }, eds));
+      syncBlockNameWithOutputColumn(params.source, params.target, params.targetHandle);
+    },
+    [syncBlockNameWithOutputColumn]
   );
 
   // Delegate complex recursive sever path helper to canvasEngine
@@ -129,8 +155,12 @@ export const ProjectProvider = ({ children }) => {
     };
 
     setEdges(prev => [...prev, finalEdge]);
+    
+    // Automatically sync name if connecting to an outputNode column
+    syncBlockNameWithOutputColumn(drawingWire.sourceId, targetNodeId, targetHandleId);
+    
     setDrawingWire(null);
-  }, [drawingWire]);
+  }, [drawingWire, syncBlockNameWithOutputColumn]);
 
   const cancelDrawingWire = useCallback(() => {
     if (!drawingWire) return;
@@ -255,6 +285,18 @@ export const ProjectProvider = ({ children }) => {
       type: 'transformNode',
       position: { x: 450, y: 120 + (currentTransforms.length * 110) },
       data: { type: 'UPPER', script: '' }
+    };
+    setNodes(prev => [...prev, newNode]);
+  }, [nodes]);
+
+  const addMathNode = useCallback(() => {
+    const currentMaths = nodes.filter(n => n.type === 'mathNode');
+    const id = `math_${Date.now()}`;
+    const newNode = {
+      id,
+      type: 'mathNode',
+      position: { x: 450, y: 150 + (currentMaths.length * 110) },
+      data: { expression: '{col1} + {col2}' }
     };
     setNodes(prev => [...prev, newNode]);
   }, [nodes]);
@@ -446,7 +488,7 @@ export const ProjectProvider = ({ children }) => {
       files, nodes, edges, onNodesChange, onEdgesChange, onConnect, 
       addFile, removeFile, clearAllFiles, 
       addOutputNode, updateOutputNodeName, deleteOutputNode,
-      addOutputColumn, updateOutputColumn, deleteOutputColumn, addTransformNode,
+      addOutputColumn, updateOutputColumn, deleteOutputColumn, addTransformNode, addMathNode,
       addFilterNode, addJoinNode, addConditionNode,
       removeEdge, setNodes, setEdges, setFiles,
       inspectorNodeId, setInspectorNodeId,

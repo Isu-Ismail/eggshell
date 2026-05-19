@@ -1,17 +1,21 @@
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
+import initSqlJs from 'sql.js';
 import { db } from './db';
 import { sanitizeColumnName } from '../utils/helpers';
 
 export const importFileToDB = async (file, onProgress) => {
   const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  const ext = file.name.toLowerCase();
   
-  if (file.name.toLowerCase().endsWith('.csv')) {
+  if (ext.endsWith('.csv')) {
     return await importCSV(file, fileId, onProgress);
-  } else if (file.name.toLowerCase().endsWith('.xlsx')) {
+  } else if (ext.endsWith('.xlsx')) {
     return await importXLSX(file, fileId, onProgress);
+  } else if (ext.endsWith('.sqlite') || ext.endsWith('.sqlite3') || ext.endsWith('.db')) {
+    return await importSQLite(file, onProgress);
   } else {
-    throw new Error('Unsupported file type. Please use .csv or .xlsx');
+    throw new Error('Unsupported file type. Please use .csv, .xlsx, or .sqlite');
   }
 };
 
@@ -121,4 +125,67 @@ const importXLSX = async (file, fileId, onProgress) => {
   }
 
   return { id: fileId, fileName: file.name, headers, rowCount };
+};
+
+const importSQLite = async (file, onProgress) => {
+  const SQL = await initSqlJs({
+    // Use unpkg to fetch the wasm file
+    locateFile: file => `https://unpkg.com/sql.js@1.14.1/dist/${file}`
+  });
+  
+  const arrayBuffer = await file.arrayBuffer();
+  const memoryDb = new SQL.Database(new Uint8Array(arrayBuffer));
+  
+  // Get all user tables
+  const res = memoryDb.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+  if (res.length === 0) throw new Error("No tables found in SQLite file");
+  
+  const tables = res[0].values.map(row => row[0]);
+  const importedFiles = [];
+
+  for (let t = 0; t < tables.length; t++) {
+    const tableName = tables[t];
+    // fetch columns
+    const columnsRes = memoryDb.exec(`PRAGMA table_info("${tableName}")`);
+    if (columnsRes.length === 0) continue;
+    
+    const columns = columnsRes[0].values.map(col => col[1]);
+    const headers = columns.map((colName, i) => ({
+      id: `col_${i}`,
+      original: colName,
+      sanitized: sanitizeColumnName(colName)
+    }));
+
+    const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const colDefs = headers.map(h => `"${h.sanitized}" TEXT`).join(", ");
+    await db.sql(`CREATE TABLE ${fileId} (__row_id INTEGER PRIMARY KEY AUTOINCREMENT, ${colDefs});`);
+
+    // fetch data
+    const dataRes = memoryDb.exec(`SELECT * FROM "${tableName}"`);
+    let rowCount = 0;
+    
+    if (dataRes.length > 0) {
+      const rows = dataRes[0].values;
+      rowCount = rows.length;
+      
+      const batchSize = 500;
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        const colNames = headers.map(h => `"${h.sanitized}"`).join(", ");
+        
+        const valuesArr = batch.map(row => {
+           const vals = row.map(v => `'${String(v ?? "").replace(/'/g, "''")}'`);
+           return `(${vals.join(', ')})`;
+        });
+        
+        const query = `INSERT INTO ${fileId} (${colNames}) VALUES ${valuesArr.join(', ')};`;
+        await db.sql(query);
+        onProgress?.(Math.min(rowCount, i + batchSize));
+      }
+    }
+    
+    importedFiles.push({ id: fileId, fileName: `${file.name.replace(/\.[^/.]+$/, "")}_${tableName}`, headers, rowCount });
+  }
+
+  return importedFiles;
 };

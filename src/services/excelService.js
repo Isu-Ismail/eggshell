@@ -53,6 +53,70 @@ export const generateExcelBlob = async (columns, dataRows) => {
     worksheet.addRow(row);
   });
   
+  // Style Header Row (Neobrutalist slate)
+  const headerRow = worksheet.getRow(1);
+  headerRow.height = 26;
+  headerRow.eachCell((cell) => {
+    cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: '1F2937' } // Slate Gray matching EggShell branding
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'left' };
+    cell.border = {
+      top: { style: 'thin', color: { argb: '111827' } },
+      left: { style: 'thin', color: { argb: '111827' } },
+      bottom: { style: 'medium', color: { argb: '111827' } },
+      right: { style: 'thin', color: { argb: '111827' } }
+    };
+  });
+
+  // Style Data Rows & set Heights
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber > 1) {
+      row.height = 20;
+      row.eachCell((cell) => {
+        cell.font = { name: 'Arial', size: 10 };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'E5E7EB' } },
+          left: { style: 'thin', color: { argb: 'E5E7EB' } },
+          bottom: { style: 'thin', color: { argb: 'E5E7EB' } },
+          right: { style: 'thin', color: { argb: 'E5E7EB' } }
+        };
+      });
+    }
+  });
+
+  // Autofit Column Widths
+  worksheet.columns.forEach((column) => {
+    let maxColumnLength = 0;
+    column.eachCell({ includeEmpty: true }, (cell) => {
+      let cellLength = 0;
+      if (cell.value !== null && cell.value !== undefined) {
+        let valStr = '';
+        if (typeof cell.value === 'object') {
+          if (cell.value.result !== undefined) {
+            valStr = cell.value.result.toString();
+          } else if (cell.value.richText) {
+            valStr = cell.value.richText.map(t => t.text || '').join('');
+          } else {
+            valStr = JSON.stringify(cell.value);
+          }
+        } else {
+          valStr = cell.value.toString();
+        }
+        cellLength = valStr.length;
+      }
+      if (cellLength > maxColumnLength) {
+        maxColumnLength = cellLength;
+      }
+    });
+    // Set padded width between 12 and 50 characters
+    column.width = Math.max(12, Math.min(50, maxColumnLength + 4));
+  });
+
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 };

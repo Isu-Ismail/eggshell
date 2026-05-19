@@ -451,7 +451,25 @@ export default function ExternalEditor() {
           <div className={styles.editorIcon}><Database size={18} /></div>
           <div>
             <h1>Standalone Database Spreadsheet Editor</h1>
-            <span className={styles.fileName}>{file.fileName}</span>
+            {files.length > 0 ? (
+              <select 
+                className={styles.fileSelectDropdown}
+                value={fileId}
+                onChange={(e) => {
+                  setFileId(e.target.value);
+                  const url = new URL(window.location);
+                  url.searchParams.set('fileId', e.target.value);
+                  window.history.pushState({}, '', url);
+                }}
+                title="Select different input file to edit"
+              >
+                {files.map(f => (
+                  <option key={f.id} value={f.id}>{f.fileName}</option>
+                ))}
+              </select>
+            ) : (
+              <span className={styles.fileName}>{file.fileName}</span>
+            )}
           </div>
         </div>
 

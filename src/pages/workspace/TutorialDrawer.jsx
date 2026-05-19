@@ -1,4 +1,4 @@
-import { X, BookOpen, Sparkles, Filter, Link2, ListChecks, Zap, BrainCircuit } from 'lucide-react';
+import { X, BookOpen, Sparkles, Filter, Link2, ListChecks, Zap, BrainCircuit, Calculator } from 'lucide-react';
 import styles from './Workspace.module.css';
 
 export default function TutorialDrawer({ isOpen, onClose }) {
@@ -23,6 +23,7 @@ export default function TutorialDrawer({ isOpen, onClose }) {
           <p>• <strong>UPPERCASE / lowercase</strong>: Instantly forces all text to UPPERCASE (e.g. <code>ALICE</code>) or lowercase (e.g. <code>alice</code>).</p>
           <p>• <strong>TRIM</strong>: Removes leading and trailing blank spaces automatically (e.g. <code>" Alice "</code> to <code>"Alice"</code>).</p>
           <p>• <strong>Custom Scripts</strong>: Run native SQLite functions on text! Write expressions like <code>{`{col} || ' (active)'`}</code> to append labels dynamically.</p>
+          <p>• <strong>Note on Calculations</strong>: For mathematical operations (such as summing columns, trigonometry, or rounding), use the dedicated **Math Block** instead of custom text scripts.</p>
         </section>
 
         <section className={styles.drawerSection}>
@@ -39,7 +40,7 @@ export default function TutorialDrawer({ isOpen, onClose }) {
         <section className={styles.drawerSection}>
           <div className={styles.sectionHeader}>
             <Link2 size={14} style={{ color: '#06b6d4' }} />
-            <h4>3. Mismatch Resolution (Join Block)</h4>
+            <h4>3. Mismatch Resolution (Match Block / Join Block)</h4>
           </div>
           <p>Map two sheets on a shared key (e.g. Student ID) to combine their columns:</p>
           <p>• <strong>Yellow (Base) Handle</strong>: Connect the primary key from your primary sheet.</p>
@@ -60,8 +61,19 @@ export default function TutorialDrawer({ isOpen, onClose }) {
 
         <section className={styles.drawerSection}>
           <div className={styles.sectionHeader}>
+            <Calculator size={14} style={{ color: '#3b82f6' }} />
+            <h4>5. Mathematical Operations (Math Block)</h4>
+          </div>
+          <p>Compute arithmetic expressions and apply mathematical functions on number columns:</p>
+          <p>• <strong>Calculations</strong>: Input standard math operators like <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>. Reference columns using <code>{`{col}`}</code> names.</p>
+          <p>• <strong>Advanced Math</strong>: Use operations like <code>sin()</code>, <code>cos()</code>, <code>tan()</code>, <code>log()</code>, <code>ln()</code>, <code>exp()</code>, and constants like <code>pi</code> and <code>e</code>.</p>
+          <p>• <strong>Decimal Precision</strong>: Specify precision from <code>1</code> to <code>10</code> decimal points to automatically round results.</p>
+        </section>
+
+        <section className={styles.drawerSection}>
+          <div className={styles.sectionHeader}>
             <Zap size={14} style={{ color: '#eab308' }} />
-            <h4>5. Click-to-Route Wires</h4>
+            <h4>6. Click-to-Route Wires</h4>
           </div>
           <p>1. <strong>Single-click</strong> a handle to start drawing a line. You don't need to hold the mouse down!</p>
           <p>2. Move your cursor. A dashed grey wire will follow your mouse dynamically.</p>
@@ -73,7 +85,7 @@ export default function TutorialDrawer({ isOpen, onClose }) {
         <section className={styles.drawerSection}>
           <div className={styles.sectionHeader}>
             <BrainCircuit size={14} style={{ color: '#a855f7' }} />
-            <h4>6. AI-Assisted Auto Scripting</h4>
+            <h4>7. AI-Assisted Auto Scripting</h4>
           </div>
           <p>Easily feed your pipeline schema to your favorite AI (ChatGPT, Claude, Gemini) to generate custom configurations without writing code:</p>
           <p>1. Click the purple **"AI Scripting"** button in the sidebar.</p>

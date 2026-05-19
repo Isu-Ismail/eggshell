@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useProject } from '../../context/ProjectContext';
-import { Trash2, Info, Sliders, Settings, Sparkles, Filter, Link2, ListChecks } from 'lucide-react';
+import { Trash2, Info, Sliders, Settings, Sparkles, Filter, Link2, ListChecks, Calculator } from 'lucide-react';
 import styles from './InspectorModal.module.css';
+
+import TransformInspector from './blocks/TransformInspector';
+import MathInspector from './blocks/MathInspector';
+import FilterInspector from './blocks/FilterInspector';
+import JoinInspector from './blocks/JoinInspector';
+import ConditionInspector from './blocks/ConditionInspector';
 
 // Recursive helper to trace the upstream raw source file column feeding into a node
 const getUpstreamSourceInfo = (currNodeId, currentEdges, currentNodes) => {
@@ -27,6 +33,7 @@ const getUpstreamSourceInfo = (currNodeId, currentEdges, currentNodes) => {
 
   let typeLabel = 'Block';
   if (sourceNode.type === 'transformNode') typeLabel = 'Transform';
+  if (sourceNode.type === 'mathNode') typeLabel = 'Math';
   if (sourceNode.type === 'conditionNode') typeLabel = 'Condition';
   if (sourceNode.type === 'filterNode') typeLabel = 'Filter';
   if (sourceNode.type === 'joinNode') typeLabel = 'Join';
@@ -39,22 +46,31 @@ const getUpstreamSourceInfo = (currNodeId, currentEdges, currentNodes) => {
 
 // Recursive helper to trace ALL upstream raw source file columns feeding into a node (supporting multiple inputs)
 const getUpstreamSourcesInfo = (currNodeId, currentEdges, currentNodes) => {
-  const incomingEdges = currentEdges.filter(e => e.target === currNodeId && e.targetHandle === 'input');
+  const incomingEdges = currentEdges.filter(e => 
+    e.target === currNodeId && e.targetHandle === 'input'
+  );
   
-  const traceUpstream = (edge) => {
+  const traceUpstream = (edge, idx) => {
     const sourceNode = currentNodes.find(n => n.id === edge.source);
     if (!sourceNode) return null;
 
     if (sourceNode.type === 'sourceNode') {
       return {
         fileName: sourceNode.data.fileName,
-        columnName: edge.sourceHandle
+        columnName: edge.sourceHandle,
+        targetHandle: `col${idx + 1}`
       };
     }
 
     if (sourceNode.type === 'waypointNode') {
       const upstreamEdge = currentEdges.find(e => e.target === sourceNode.id && e.targetHandle === 'input');
-      if (upstreamEdge) return traceUpstream(upstreamEdge);
+      if (upstreamEdge) {
+        const res = traceUpstream(upstreamEdge, idx);
+        if (res) {
+          res.targetHandle = `col${idx + 1}`;
+        }
+        return res;
+      }
     }
 
     const dstInfo = getDownstreamOutputInfo(sourceNode.id, currentEdges, currentNodes);
@@ -62,17 +78,19 @@ const getUpstreamSourcesInfo = (currNodeId, currentEdges, currentNodes) => {
 
     let typeLabel = 'Block';
     if (sourceNode.type === 'transformNode') typeLabel = 'Transform';
+    if (sourceNode.type === 'mathNode') typeLabel = 'Math';
     if (sourceNode.type === 'conditionNode') typeLabel = 'Condition';
     if (sourceNode.type === 'filterNode') typeLabel = 'Filter';
     if (sourceNode.type === 'joinNode') typeLabel = 'Join';
 
     return {
       fileName: `${typeLabel} (${sourceNode.id})`,
-      columnName: friendlyName
+      columnName: friendlyName,
+      targetHandle: `col${idx + 1}`
     };
   };
 
-  return incomingEdges.map(traceUpstream).filter(Boolean);
+  return incomingEdges.map((edge, idx) => traceUpstream(edge, idx)).filter(Boolean);
 };
 
 // Recursive helper to trace the downstream destination output columns targeted by a node
@@ -117,6 +135,7 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
   const [localType, setLocalType] = useState('UPPER');
   const [localScript, setLocalScript] = useState('');
   const [localCondition, setLocalCondition] = useState('');
+  const [localExpression, setLocalExpression] = useState('{col1} + {col2}');
 
   // Condition node dynamic states
   const [localNewColumnName, setLocalNewColumnName] = useState('amount');
@@ -129,21 +148,88 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
   // Custom variable alias
   const [localCustomName, setLocalCustomName] = useState('');
 
+  // Round decimals config for Math block
+  const [localRoundDecimals, setLocalRoundDecimals] = useState('');
+
+  const originalDataRef = useRef({});
+
   // Synchronize local edit buffer state only when the active node changes
   useEffect(() => {
     const activeNode = nodes.find(n => n.id === nodeId);
     if (activeNode) {
       setNode(activeNode);
-      setLocalType(activeNode.data.type || 'UPPER');
-      setLocalScript(activeNode.data.script || '');
-      setLocalCondition(activeNode.data.condition || '');
-      setLocalNewColumnName(activeNode.data.newColumnName || 'output_col');
-      setLocalRules(activeNode.data.rules || [{ operator: '=', value: 'value', thenVal: 'result' }]);
-      setLocalElseVal(activeNode.data.elseVal || 'default');
-      setLocalPassThroughIndex(activeNode.data.passThroughIndex || 0);
-      setLocalCustomName(activeNode.data.customName || '');
+      
+      originalDataRef.current = {
+        type: activeNode.data.type ?? 'UPPER',
+        script: activeNode.data.script ?? '',
+        condition: activeNode.data.condition ?? '',
+        expression: activeNode.data.expression ?? '{col1} + {col2}',
+        newColumnName: activeNode.data.newColumnName ?? 'output_col',
+        elseVal: activeNode.data.elseVal ?? '0',
+        customName: activeNode.data.customName ?? '',
+        roundDecimals: activeNode.data.roundDecimals ?? ''
+      };
+
+      setLocalType(activeNode.data.type ?? 'UPPER');
+      setLocalScript(activeNode.data.script ?? '');
+      setLocalCondition(activeNode.data.condition ?? '');
+      setLocalExpression(activeNode.data.expression ?? '{col1} + {col2}');
+      setLocalNewColumnName(activeNode.data.newColumnName ?? 'output_col');
+      setLocalRules(activeNode.data.rules ?? [{ operator: '=', value: 'value', thenVal: 'result' }]);
+      setLocalElseVal(activeNode.data.elseVal ?? '0');
+      setLocalPassThroughIndex(activeNode.data.passThroughIndex ?? 0);
+      setLocalCustomName(activeNode.data.customName ?? '');
+      setLocalRoundDecimals(activeNode.data.roundDecimals ?? '');
     }
-  }, [nodeId, nodes]);
+  }, [nodeId]);
+
+  const handleFinishEditing = (field, currentValue, defaultValue) => {
+    if (!currentValue || currentValue.trim() === '') {
+      const fallback = originalDataRef.current[field] || defaultValue;
+      if (field === 'expression') {
+        setLocalExpression(fallback);
+        setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, expression: fallback } } : n));
+      } else if (field === 'script') {
+        setLocalScript(fallback);
+        setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, script: fallback } } : n));
+      } else if (field === 'condition') {
+        setLocalCondition(fallback);
+        setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, condition: fallback } } : n));
+      } else if (field === 'newColumnName') {
+        setLocalNewColumnName(fallback);
+        setNodes(nds => nds.map(n => {
+          if (n.id === nodeId) {
+            return { ...n, data: { ...n.data, newColumnName: fallback } };
+          }
+          if (n.type === 'outputNode') {
+            const outgoingEdges = edges.filter(ed => ed.source === nodeId);
+            const connectedColIds = outgoingEdges
+              .filter(ed => ed.target === n.id)
+              .map(ed => ed.targetHandle);
+              
+            if (connectedColIds.length > 0) {
+              const updatedCols = (n.data.columns || []).map(col => {
+                if (connectedColIds.includes(col.id)) {
+                  return { ...col, name: fallback };
+                }
+                return col;
+              });
+              return { ...n, data: { ...n.data, columns: updatedCols } };
+            }
+          }
+          return n;
+        }));
+      } else if (field === 'customName') {
+        setLocalCustomName(fallback);
+        setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, customName: fallback } } : n));
+      } else if (field === 'elseVal') {
+        setLocalElseVal(fallback);
+        setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, elseVal: fallback } } : n));
+      }
+    } else {
+      originalDataRef.current[field] = currentValue;
+    }
+  };
 
   if (!isOpen || !node) return null;
 
@@ -157,6 +243,18 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
     const val = e.target.value;
     setLocalScript(val);
     setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, script: val } } : n));
+  };
+
+  const handleExpressionChange = (e) => {
+    const val = e.target.value;
+    setLocalExpression(val);
+    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, expression: val } } : n));
+  };
+
+  const handleRoundDecimalsChange = (e) => {
+    const val = e.target.value;
+    setLocalRoundDecimals(val);
+    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, roundDecimals: val } } : n));
   };
 
   const handleConditionChange = (e) => {
@@ -239,6 +337,10 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
       setLocalType('UPPER');
       setLocalScript('');
       setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { type: 'UPPER', script: '' } } : n));
+    } else if (node.type === 'mathNode') {
+      setLocalExpression('{col1} + {col2}');
+      setLocalRoundDecimals('');
+      setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { expression: '{col1} + {col2}', roundDecimals: '' } } : n));
     } else if (node.type === 'filterNode') {
       setLocalCondition("{col} = 'value'");
       setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { condition: "{col} = 'value'" } } : n));
@@ -264,6 +366,9 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
       if (type === 'TRIM') return "Trims leading and trailing spaces from text (e.g. ' Alice ' to 'Alice') to avoid alignment mismatches.";
       if (type === 'CUSTOM') return "Applies a custom SQLite expression script to this column. Uses {col} to represent input values.";
     }
+    if (node.type === 'mathNode') {
+      return `Performs mathematical arithmetic on columns. Use {col1}, {col2}, {col3}, {col4}, {col5} matching their active left connections. Non-numeric rows are safely skipped.`;
+    }
     if (node.type === 'filterNode') {
       return `Filters entire database rows of your stitched dataset. It will keep only records where this column matches: ${localCondition || "{col} = ''"}.`;
     }
@@ -278,6 +383,7 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
 
   const getNodeIcon = () => {
     if (node.type === 'transformNode') return <Sparkles size={16} style={{ color: '#a855f7' }} />;
+    if (node.type === 'mathNode') return <Calculator size={16} style={{ color: '#3b82f6' }} />;
     if (node.type === 'filterNode') return <Filter size={16} style={{ color: '#ec4899' }} />;
     if (node.type === 'joinNode') return <Link2 size={16} style={{ color: '#06b6d4' }} />;
     if (node.type === 'conditionNode') return <ListChecks size={16} style={{ color: '#10b981' }} />;
@@ -295,6 +401,7 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
           <h3 className={styles.title}>
             {getNodeIcon()} Inspector: {
               node.type === 'transformNode' ? 'Transform Block' : 
+              node.type === 'mathNode' ? 'Math Block' : 
               node.type === 'filterNode' ? 'Filter Block' : 
               node.type === 'conditionNode' ? 'Conditional Block' : 
               'Join Block'
@@ -311,7 +418,7 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
           </div>
 
           {/* Connection Path Details */}
-          {(node.type === 'filterNode' || node.type === 'transformNode' || node.type === 'conditionNode') && (
+          {(node.type === 'filterNode' || node.type === 'transformNode' || node.type === 'conditionNode' || node.type === 'mathNode') && (
             <div className={styles.connectionsCard}>
               <h5 className={styles.connectionsCardTitle}>Active Connection Path</h5>
               <div className={styles.connectionsGrid}>
@@ -374,6 +481,8 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
                   className={styles.input} 
                   value={localCustomName || ''} 
                   onChange={handleCustomNameChange}
+                  onBlur={() => handleFinishEditing('customName', localCustomName, '')}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleFinishEditing('customName', localCustomName, ''); }}
                   placeholder="e.g. percentage_calculator (only letters, numbers, and underscores)"
                 />
                 <span className={styles.hint}>
@@ -383,182 +492,53 @@ export default function InspectorModal({ nodeId, isOpen, onClose }) {
             )}
 
             {node.type === 'transformNode' && (
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Transformation Type:</label>
-                <select 
-                  className={styles.select} 
-                  value={localType || 'UPPER'} 
-                  onChange={handleTypeChange}
-                >
-                  <option value="UPPER">UPPERCASE (AA)</option>
-                  <option value="LOWER">lowercase (aa)</option>
-                  <option value="TRIM">TRIM (Auto)</option>
-                  <option value="SERIAL_NO">Serial Number (1, 2, 3...)</option>
-                  <option value="CUSTOM">Custom Script</option>
-                </select>
+              <TransformInspector
+                localType={localType}
+                handleTypeChange={handleTypeChange}
+                localScript={localScript}
+                handleScriptChange={handleScriptChange}
+                handleFinishEditing={handleFinishEditing}
+                upstreamSources={upstreamSources}
+              />
+            )}
 
-                {localType === 'SERIAL_NO' && (
-                  <div className={styles.scriptGroup}>
-                    <span className={styles.hint} style={{ color: '#10b981', fontWeight: 700 }}>
-                      ⚡ Auto Generator Enabled: This block will automatically calculate and output a sequential row number (1, 2, 3...) for every record in your output spreadsheet!
-                    </span>
-                  </div>
-                )}
-
-                {localType === 'CUSTOM' && (
-                  <div className={styles.scriptGroup}>
-                    <label className={styles.label}>Custom Expression:</label>
-                    <input 
-                      type="text" 
-                      className={styles.input} 
-                      value={localScript || ''} 
-                      onChange={handleScriptChange}
-                      placeholder="e.g. {col1} || ' ' || {col2}"
-                      title="Use {col1}, {col2} to represent input values"
-                    />
-                    <span className={styles.hint}>
-                      Tip: Reference input columns using <code>{`{col1}`}</code>, <code>{`{col2}`}</code>, etc. matching the order in the Connection Path above!
-                      {upstreamSources.length <= 1 && <span> (Or simply use <code>{`{col}`}</code>).</span>}
-                    </span>
-                  </div>
-                )}
-              </div>
+            {node.type === 'mathNode' && (
+              <MathInspector
+                localExpression={localExpression}
+                handleExpressionChange={handleExpressionChange}
+                handleFinishEditing={handleFinishEditing}
+                localRoundDecimals={localRoundDecimals}
+                handleRoundDecimalsChange={handleRoundDecimalsChange}
+              />
             )}
 
             {node.type === 'filterNode' && (
-              <div className={styles.formGroup} style={{ gap: '14px' }}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>WHERE Filter Condition:</label>
-                  <input 
-                    type="text" 
-                    className={styles.input} 
-                    value={localCondition || ''} 
-                    onChange={handleConditionChange}
-                    placeholder="e.g. {col1} > {col2}"
-                  />
-                  <span className={styles.hint}>
-                    Tip: Reference inputs using <code>{`{col1}`}</code>, <code>{`{col2}`}</code>, etc. matching the order in the Connection Path above!
-                    {upstreamSources.length <= 1 && <span> (Or simply use <code>{`{col}`}</code>).</span>}
-                  </span>
-                </div>
-
-                {upstreamSources.length > 1 && (
-                  <div className={styles.formGroup} style={{ marginTop: '4px' }}>
-                    <label className={styles.label}>Select Output Flow Column:</label>
-                    <select 
-                      className={styles.select} 
-                      value={localPassThroughIndex || 0} 
-                      onChange={handlePassThroughIndexChange}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        border: '1px solid #d1d5db',
-                        fontSize: '13px',
-                        fontWeight: '500',
-                        color: '#374151',
-                        backgroundColor: '#fff'
-                      }}
-                    >
-                      {upstreamSources.map((src, idx) => (
-                        <option key={idx} value={idx}>
-                          {src.customName 
-                            ? `{col${idx + 1}} / {${src.customName}} — ${src.columnName} (${src.fileName.replace(/\.[^/.]+$/, "")})`
-                            : `{col${idx + 1}} — ${src.columnName} (${src.fileName.replace(/\.[^/.]+$/, "")})`}
-                        </option>
-                      ))}
-                    </select>
-                    <span className={styles.hint}>
-                      Since multiple columns feed into this filter, specify which one should flow out to downstream blocks.
-                    </span>
-                  </div>
-                )}
-              </div>
+              <FilterInspector
+                localCondition={localCondition}
+                handleConditionChange={handleConditionChange}
+                handleFinishEditing={handleFinishEditing}
+                localPassThroughIndex={localPassThroughIndex}
+                handlePassThroughIndexChange={handlePassThroughIndexChange}
+                upstreamSources={upstreamSources}
+              />
             )}
 
             {node.type === 'joinNode' && (
-              <div className={styles.joinDetails}>
-                <p>
-                  <Settings size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} /> 
-                  <strong>Zero-Config Mode:</strong> This block connects two sheets automatically. Simply wire the base sheet key to the yellow base handle, the matching sheet key to the purple handle, and let the engine stitch them in order.
-                </p>
-              </div>
+              <JoinInspector />
             )}
 
             {node.type === 'conditionNode' && (
-              <div className={styles.formGroup} style={{ gap: '14px' }}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>New Column Name:</label>
-                  <input 
-                    type="text" 
-                    className={styles.input} 
-                    value={localNewColumnName} 
-                    onChange={handleNewColumnNameChange}
-                    placeholder="e.g. amount or weight_category"
-                  />
-                  <span className={styles.hint}>The name of the new column to append (lowercase, no spaces).</span>
-                </div>
-
-                <div className={styles.rulesSection}>
-                  <h5 className={styles.rulesSectionTitle}>Conditional Rules (If/Else-If)</h5>
-                  {localRules.map((rule, idx) => (
-                    <div key={idx} className={styles.ruleRow}>
-                      <span className={styles.ruleLabel}>IF &#123;col&#125;</span>
-                      <select 
-                        className={styles.ruleSelect}
-                        value={rule.operator}
-                        onChange={(e) => handleRuleChange(idx, 'operator', e.target.value)}
-                      >
-                        <option value="=">=</option>
-                        <option value="!=">!=</option>
-                        <option value=">">&gt;</option>
-                        <option value="<">&lt;</option>
-                        <option value=">=">&gt;=</option>
-                        <option value="<=">&lt;=</option>
-                        <option value="CONTAINS">CONTAINS</option>
-                      </select>
-                      <input 
-                        type="text" 
-                        className={styles.ruleInput}
-                        value={rule.value}
-                        onChange={(e) => handleRuleChange(idx, 'value', e.target.value)}
-                        placeholder="val"
-                      />
-                      <span className={styles.ruleLabel}>THEN</span>
-                      <input 
-                        type="text" 
-                        className={styles.ruleInput}
-                        value={rule.thenVal}
-                        onChange={(e) => handleRuleChange(idx, 'thenVal', e.target.value)}
-                        placeholder="result"
-                      />
-                      {localRules.length > 1 && (
-                        <button 
-                          className={styles.ruleDelBtn}
-                          onClick={() => removeRule(idx)}
-                          title="Remove Rule"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button className={styles.addRuleBtn} onClick={addRule}>
-                    + Add Rule
-                  </button>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>ELSE Default Value:</label>
-                  <input 
-                    type="text" 
-                    className={styles.input} 
-                    value={localElseVal} 
-                    onChange={handleElseValChange}
-                    placeholder="e.g. 0 or normal"
-                  />
-                  <span className={styles.hint}>The default fallback value written if none of the above conditions match.</span>
-                </div>
-              </div>
+              <ConditionInspector
+                localNewColumnName={localNewColumnName}
+                handleNewColumnNameChange={handleNewColumnNameChange}
+                handleFinishEditing={handleFinishEditing}
+                localRules={localRules}
+                handleRuleChange={handleRuleChange}
+                removeRule={removeRule}
+                addRule={addRule}
+                localElseVal={localElseVal}
+                handleElseValChange={handleElseValChange}
+              />
             )}
           </div>
         </div>

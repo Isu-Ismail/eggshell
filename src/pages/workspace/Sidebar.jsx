@@ -1,8 +1,9 @@
 import { useRef, useState, useEffect } from 'react';
 import { importFileToDB } from '../../services/importService';
+import { db } from '../../services/db';
 import { useProject } from '../../context/ProjectContext';
 import { useSqlite } from '../../hooks/useSqlite';
-import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCircle, Sparkles, Filter, Link2, BrainCircuit, Eye, EyeOff, ListChecks, Download, Settings2, Edit } from 'lucide-react';
+import { UploadCloud, Loader, Trash2, XCircle, ChevronLeft, PlusCircle, HelpCircle, Sparkles, Filter, Link2, BrainCircuit, Eye, EyeOff, ListChecks, Download, Settings2, Edit, Calculator, Database, Braces } from 'lucide-react';
 import { ConfirmModal, AlertModal } from '../../components/ui/Modal';
 import styles from './Sidebar.module.css';
 
@@ -12,7 +13,7 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
   
   const { 
     addFile, files, removeFile, clearAllFiles, 
-    addOutputNode, addTransformNode, addFilterNode, addJoinNode, addConditionNode,
+    addOutputNode, addTransformNode, addMathNode, addFilterNode, addJoinNode, addConditionNode,
     nodes, edges, addFileToCanvas, removeFileFromCanvas, addOutputNodeFromTemplate,
     exportFullPipelineConfig
   } = useProject();
@@ -23,12 +24,18 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
   const [alertState, setAlertState] = useState({ isOpen: false, title: '', message: '' });
   
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
+  const [isBlocksMenuOpen, setIsBlocksMenuOpen] = useState(false);
+  const [blockSearchQuery, setBlockSearchQuery] = useState('');
   const toolsDropdownRef = useRef(null);
+  const blocksDropdownRef = useRef(null);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(e.target)) {
         setIsToolsMenuOpen(false);
+      }
+      if (blocksDropdownRef.current && !blocksDropdownRef.current.contains(e.target)) {
+        setIsBlocksMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -46,8 +53,12 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
         const parsedData = await importFileToDB(file, (count) => {
           setProgress({ file: file.name, count });
         });
-        await execute(`CREATE TABLE IF NOT EXISTS backup_${parsedData.id} AS SELECT * FROM ${parsedData.id};`);
-        addFile(parsedData);
+        
+        const importedArray = Array.isArray(parsedData) ? parsedData : [parsedData];
+        for (const pd of importedArray) {
+          await execute(`CREATE TABLE IF NOT EXISTS backup_${pd.id} AS SELECT * FROM ${pd.id};`);
+          addFile(pd);
+        }
       }
     } catch (err) {
       console.error("Failed to parse/upload file", err);
@@ -116,17 +127,31 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
     }
   };
 
+  const blocks = [
+    { name: 'Transform Block', desc: 'UPPERCASE, lowercase, TRIM, Serial No, Custom Script', icon: <Sparkles size={14} />, action: addTransformNode, className: styles.toolItemTransform },
+    { name: 'Math Block', desc: 'Arithmetic (+, -, *, /) and rounding config', icon: <Calculator size={14} />, action: addMathNode, className: styles.toolItemMath },
+    { name: 'Conditional Block', desc: 'IF-ELSE conditional scoring and logic', icon: <ListChecks size={14} />, action: addConditionNode, className: styles.toolItemCondition },
+    { name: 'Filter Block', desc: 'WHERE filters (e.g. {col} > 10)', icon: <Filter size={14} />, action: addFilterNode, className: styles.toolItemFilter },
+    { name: 'Join Block', desc: 'LEFT JOIN alignment key stitching', icon: <Link2 size={14} />, action: addJoinNode, className: styles.toolItemJoin },
+  ];
+
+  const filteredBlocks = blocks.filter(b => 
+    b.name.toLowerCase().includes(blockSearchQuery.toLowerCase()) || 
+    b.desc.toLowerCase().includes(blockSearchQuery.toLowerCase())
+  );
+
   return (
     <div className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
   <div className={styles.headerRow}>
     <div className={styles.brandingGroup}>
       <div className={styles.brandBox} onClick={onOpenWhyChoose} title="Click to view Welcome Screen and feature showcase">
-        <h2 className={styles.title}>Melder</h2>
+        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="EggShell Logo" style={{ width: '24px', height: '24px', marginRight: '8px' }} />
+        <h2 className={styles.title}>EggShell</h2>
         {!isCollapsed && (
           <button 
             className={styles.brandHelpBtn} 
             onClick={(e) => { e.stopPropagation(); onOpenWhyChoose(); }}
-            title="Welcome to Melder"
+            title="Welcome to EggShell"
           >
             <HelpCircle size={12} />
           </button>
@@ -156,32 +181,88 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
           <input 
             type="file" 
             multiple
-            accept=".xlsx,.csv" 
+            accept=".xlsx,.csv,.sqlite,.sqlite3,.db" 
             ref={fileInputRef} 
             style={{ display: 'none' }} 
             onChange={handleUpload}
           />
         </div>
 
-        <div className={styles.toolsContainer} ref={toolsDropdownRef}>
+        {/* Standalone Add Output File button */}
+        <button 
+          className={styles.addOutputBtn} 
+          onClick={addOutputNode}
+          title="Create blank output file layout"
+        >
+          <PlusCircle size={16} /> Add Output File
+        </button>
+
+        {/* Blocks Dropdown with search */}
+        <div className={styles.dropdownContainer} ref={blocksDropdownRef}>
+          <button 
+            className={styles.blocksBtn} 
+            onClick={() => {
+              setIsBlocksMenuOpen(!isBlocksMenuOpen);
+              setBlockSearchQuery('');
+            }} 
+            title="Search and add pipeline block nodes to canvas"
+          >
+            <Settings2 size={16} /> Blocks
+          </button>
+          
+          {isBlocksMenuOpen && (
+            <div className={styles.dropdownMenu}>
+              <div className={styles.searchWrapper}>
+                <input 
+                  type="text" 
+                  className={styles.searchBar} 
+                  placeholder="Search blocks..." 
+                  value={blockSearchQuery} 
+                  onChange={(e) => setBlockSearchQuery(e.target.value)}
+                  onClick={(e) => e.stopPropagation()} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (filteredBlocks.length > 0) {
+                        filteredBlocks[0].action();
+                        setIsBlocksMenuOpen(false);
+                      }
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+              <div className={styles.blocksList}>
+                {filteredBlocks.length > 0 ? (
+                  filteredBlocks.map((b, idx) => (
+                    <button 
+                      key={idx}
+                      onClick={() => { b.action(); setIsBlocksMenuOpen(false); }}
+                      title={b.desc}
+                      className={b.className}
+                    >
+                      {b.icon} {b.name}
+                    </button>
+                  ))
+                ) : (
+                  <div className={styles.noResults}>No blocks match search</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tools Dropdown */}
+        <div className={styles.dropdownContainer} ref={toolsDropdownRef}>
           <button 
             className={styles.toolsBtn} 
             onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)} 
-            title="Expand stitcher utilities, templates, AI, and canvas blocks"
+            title="Expand templates, AI scripting and exports"
           >
-            <Settings2 size={18} /> Tools
+            <BrainCircuit size={16} /> Tools
           </button>
           
           {isToolsMenuOpen && (
-            <div className={styles.toolsDropdown}>
-              <button 
-                onClick={() => { addOutputNode(); setIsToolsMenuOpen(false); }}
-                title="Create blank output file layout"
-                className={styles.toolItemOutput}
-              >
-                <PlusCircle size={14} /> Add Output File
-              </button>
-
+            <div className={styles.dropdownMenu}>
               <button 
                 onClick={() => { outputTemplateRef.current.click(); setIsToolsMenuOpen(false); }}
                 title="Import excel sheet to pre-fill output columns"
@@ -213,44 +294,33 @@ export default function Sidebar({ isCollapsed, onCollapse, onOpenTutorial, onOpe
                   URL.revokeObjectURL(url);
                   setIsToolsMenuOpen(false);
                 }} 
-                title="Download entire canvas pipeline configuration (multiple sheets & outputs)"
+                title="Download entire canvas pipeline configuration"
                 className={styles.toolItemExport}
               >
-                <Download size={14} /> Export Pipeline JSON
-              </button>
-
-              <div style={{ height: '2px', background: '#111827', margin: '4px 0' }} />
-
-              <button 
-                onClick={() => { addTransformNode(); setIsToolsMenuOpen(false); }}
-                title="Visual String Transform Node (Upper/Lower/Trim/Custom)"
-                className={styles.toolItemTransform}
-              >
-                <Sparkles size={14} /> Transform Block
+                <Braces size={14} /> Export Pipeline JSON
               </button>
 
               <button 
-                onClick={() => { addConditionNode(); setIsToolsMenuOpen(false); }}
-                title="Visual If-Else Conditional Block (for amount mappings, scoring, etc.)"
-                className={styles.toolItemCondition}
+                onClick={async () => {
+                  try {
+                    const file = await db.getDatabaseFile();
+                    const url = URL.createObjectURL(file);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'eggshell_database.sqlite';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  } catch(e) {
+                    setAlertState({isOpen: true, title: 'Export Failed', message: e.message});
+                  }
+                  setIsToolsMenuOpen(false);
+                }} 
+                title="Download entire SQLite database with all tables and data"
+                className={styles.toolItemExport}
               >
-                <ListChecks size={14} /> Conditional Block
-              </button>
-
-              <button 
-                onClick={() => { addFilterNode(); setIsToolsMenuOpen(false); }}
-                title="Visual SQL Filter Node (e.g. {col} = 'value')"
-                className={styles.toolItemFilter}
-              >
-                <Filter size={14} /> Filter Block
-              </button>
-
-              <button 
-                onClick={() => { addJoinNode(); setIsToolsMenuOpen(false); }}
-                title="Visual LEFT JOIN Mismatch Key Node"
-                className={styles.toolItemJoin}
-              >
-                <Link2 size={14} /> Join Block
+                <Database size={14} /> Export SQLite DB
               </button>
             </div>
           )}

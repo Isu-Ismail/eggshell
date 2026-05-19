@@ -47,16 +47,22 @@ const resolveSourceColumn = (nodeId, handleId, state) => {
       sourceNodes.forEach(n => {
         const fullFileName = n.data?.fileName || '';
         const cleanFileName = fullFileName.replace(/\.[^/.]+$/, "");
+        const customName = n.data?.customName || '';
         
         // Escape special regex characters in filenames
         const escapeRegex = (string) => string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         const escapedFull = escapeRegex(fullFileName);
         const escapedClean = escapeRegex(cleanFileName);
+        const escapedCustom = customName ? escapeRegex(customName) : '';
         
         // Build regexes to match either inside quotes or raw word boundary
         const patterns = [
           new RegExp(`"${escapedFull}"`, 'g'),
           new RegExp(`"${escapedClean}"`, 'g'),
+          ...(escapedCustom ? [
+            new RegExp(`"${escapedCustom}"`, 'g'),
+            new RegExp(`\\b${escapedCustom}\\b`, 'g')
+          ] : []),
           new RegExp(`\\b${escapedFull}\\b`, 'g'),
           new RegExp(`\\b${escapedClean}\\b`, 'g')
         ];
@@ -104,6 +110,79 @@ const resolveSourceColumn = (nodeId, handleId, state) => {
     };
   }
 
+  // Case BX: Math Node Block
+  if (currentNode.type === 'mathNode') {
+    const incomingEdges = state.edges.filter(e => e.target === currentNode.id && e.targetHandle === 'input');
+    const resolvedInputs = [];
+
+    incomingEdges.forEach((edge) => {
+      const parentNode = state.nodes.find(n => n.id === edge.source);
+      if (parentNode) {
+        let resolved = null;
+        if (parentNode.type === 'sourceNode') {
+          resolved = {
+            table: parentNode.id,
+            column: edge.sourceHandle,
+            expression: `"${parentNode.id}"."${edge.sourceHandle}"`,
+            customName: parentNode.data?.customName || null
+          };
+        } else {
+          resolved = resolveSourceColumn(parentNode.id, 'input', state);
+          if (resolved && parentNode.data?.customName) {
+            resolved.customName = parentNode.data.customName;
+          }
+        }
+        if (resolved) {
+          resolvedInputs.push(resolved);
+          
+          // Add numeric check to skip non-numeric rows
+          const expr = resolved.expression;
+          state.filters.push(`${expr} IS NOT NULL AND ${expr} != '' AND LTRIM(${expr}, '0123456789.-+') = ''`);
+        }
+      }
+    });
+
+    if (resolvedInputs.length === 0) return null;
+    const firstInput = resolvedInputs[0];
+
+    let expression = currentNode.data.expression || '{col1} + {col2}';
+
+    // Replace mathematical constants pi and e (case-insensitive)
+    expression = expression.replaceAll('{pi}', '3.141592653589793');
+    expression = expression.replaceAll('{e}', '2.718281828459045');
+    expression = expression.replace(/\bpi\b/gi, '3.141592653589793');
+    expression = expression.replace(/\be\b/gi, '2.718281828459045');
+
+    for (let idx = 0; idx < 5; idx++) {
+      const resolved = resolvedInputs[idx];
+      const placeholder = `{col${idx + 1}}`;
+      if (resolved) {
+        expression = expression.replaceAll(placeholder, `CAST(${resolved.expression} AS REAL)`);
+        if (resolved.customName) {
+          expression = expression.replaceAll(`{${resolved.customName}}`, `CAST(${resolved.expression} AS REAL)`);
+        }
+      } else {
+        expression = expression.replaceAll(placeholder, '0.0');
+      }
+    }
+
+    let finalExpression = `(${expression})`;
+    const roundDec = currentNode.data?.roundDecimals;
+    if (roundDec !== undefined && roundDec !== null && roundDec !== '') {
+      const decimals = parseInt(roundDec, 10);
+      if (!isNaN(decimals)) {
+        finalExpression = `ROUND((${expression}), ${decimals})`;
+      }
+    }
+
+    return {
+      table: firstInput.table,
+      column: firstInput.column,
+      expression: finalExpression,
+      customName: currentNode.data?.customName || null
+    };
+  }
+
   // Case C: Filter Node Block
   if (currentNode.type === 'filterNode') {
     const incomingEdges = state.edges.filter(e => e.target === currentNode.id && e.targetHandle === 'input');
@@ -143,6 +222,53 @@ const resolveSourceColumn = (nodeId, handleId, state) => {
       }
     });
     compiledCondition = compiledCondition.replaceAll('{col}', parentSource.expression);
+    
+    // Auto-translate clean file names, full file names, or alias references to physical SQLite table IDs in filter condition!
+    const sourceNodes = state.nodes.filter(n => n.type === 'sourceNode');
+    sourceNodes.forEach(n => {
+      const fullFileName = n.data?.fileName || '';
+      const cleanFileName = fullFileName.replace(/\.[^/.]+$/, "");
+      const customName = n.data?.customName || '';
+      
+      const escapeRegex = (string) => string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const escapedFull = escapeRegex(fullFileName);
+      const escapedClean = escapeRegex(cleanFileName);
+      const escapedCustom = customName ? escapeRegex(customName) : '';
+      
+      const patterns = [
+        new RegExp(`"${escapedFull}"`, 'g'),
+        new RegExp(`"${escapedClean}"`, 'g'),
+        ...(escapedCustom ? [
+          new RegExp(`"${escapedCustom}"`, 'g'),
+          new RegExp(`\\b${escapedCustom}\\b`, 'g')
+        ] : []),
+        new RegExp(`\\b${escapedFull}\\b`, 'g'),
+        new RegExp(`\\b${escapedClean}\\b`, 'g')
+      ];
+      
+      patterns.forEach(pattern => {
+        compiledCondition = compiledCondition.replace(pattern, `"${n.id}"`);
+      });
+
+      // Auto-sanitize custom script column references for this table
+      if (n.data?.headers && Array.isArray(n.data.headers)) {
+        n.data.headers.forEach(h => {
+          const escOrig = escapeRegex(h.original);
+          const escSan = escapeRegex(h.sanitized);
+          
+          const colPatterns = [
+            new RegExp(`"${n.id}"\\."${escOrig}"`, 'gi'),
+            new RegExp(`"${n.id}"\\.${escOrig}`, 'gi'),
+            new RegExp(`"${n.id}"\\."${escSan}"`, 'gi'),
+            new RegExp(`"${n.id}"\\.${escSan}`, 'gi')
+          ];
+          
+          colPatterns.forEach(pat => {
+            compiledCondition = compiledCondition.replace(pat, `"${n.id}"."${h.sanitized}"`);
+          });
+        });
+      }
+    });
     
     state.filters.push(compiledCondition);
 
