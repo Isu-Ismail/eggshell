@@ -11,7 +11,11 @@ export const ProjectProvider = ({ children }) => {
   const [files, setFiles] = useState([]);
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
-  
+  const [dbVersion, setDbVersion] = useState(0);
+  const triggerDbRefresh = useCallback(() => {
+    setDbVersion(prev => prev + 1);
+  }, []);
+
   // Track globally active node inside the pipeline Inspector Modal
   const [inspectorNodeId, setInspectorNodeId] = useState(null);
   
@@ -499,7 +503,8 @@ export const ProjectProvider = ({ children }) => {
       startDrawingWire, addWaypointToDrawingWire, completeDrawingWire, cancelDrawingWire,
       deleteConnectionPath, addOutputNodeFromTemplate, duplicateOutputNode, copyColumnsFromSource,
       hiddenOutputs, toggleOutputVisibility, exportPipelineConfig, exportFullPipelineConfig, autoArrangeCanvas,
-      renameFileColumn, deleteFileColumn, updateFileRowCount, restoreFileOriginals
+      renameFileColumn, deleteFileColumn, updateFileRowCount, restoreFileOriginals,
+      dbVersion, triggerDbRefresh
     }}>
       {children}
     </ProjectContext.Provider>

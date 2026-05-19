@@ -22,6 +22,7 @@ export default function ExternalPreview() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportMode, setExportMode] = useState('csv');
+  const [dbVersion, setDbVersion] = useState(0);
 
   const channelRef = useRef(null);
   const pendingQueriesRef = useRef(new Map());
@@ -42,7 +43,10 @@ export default function ExternalPreview() {
         setIsSyncing(true);
         setNodes(syncedNodes || []);
         setEdges(syncedEdges || []);
+        setDbVersion(prev => prev + 1);
         setTimeout(() => setIsSyncing(false), 300);
+      } else if (type === 'DB_MUTATED') {
+        setDbVersion(prev => prev + 1);
       } else if (type === 'QUERY_RESULT') {
         const callback = pendingQueriesRef.current.get(id);
         if (callback) {
@@ -168,7 +172,7 @@ export default function ExternalPreview() {
     };
 
     fetchPreview();
-  }, [nodes, edges, limit, selectedOutputId, sortConfig]);
+  }, [nodes, edges, limit, selectedOutputId, sortConfig, dbVersion]);
 
   // End of helper methods
 

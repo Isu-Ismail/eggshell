@@ -8,7 +8,7 @@ import ExportModal from '../../components/canvas/ExportModal';
 import styles from './DataPreview.module.css';
 
 export default function DataPreview() {
-  const { nodes, edges } = useProject();
+  const { nodes, edges, dbVersion } = useProject();
   const { execute } = useSqlite();
   const [previewData, setPreviewData] = useState([]);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -65,7 +65,7 @@ export default function DataPreview() {
     };
     
     fetchPreview();
-  }, [nodes, edges, execute, limit, selectedOutputId]);
+  }, [nodes, edges, execute, limit, selectedOutputId, dbVersion]);
 
   // Selected node mapping status for visual UI preview indicators
   const selectedNode = outputNodes.find(n => n.id === selectedOutputId);

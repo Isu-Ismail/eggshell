@@ -209,6 +209,7 @@ export default function ExternalEditor() {
         nodes: updatedNodes, 
         edges: updatedEdges 
       });
+      channelRef.current.postMessage({ type: 'DB_MUTATED' });
       // Trigger a state update broadcast so preview tabs refresh too
       channelRef.current.postMessage({ type: 'REQUEST_STATE' });
     }
@@ -237,6 +238,9 @@ export default function ExternalEditor() {
       const escaped = String(value).replace(/'/g, "''");
       await execute(`UPDATE "${fileId}" SET "${colSanitized}" = '${escaped}' WHERE __row_id = ${rowId}`);
       setSaveStatus('Saved');
+      if (channelRef.current) {
+        channelRef.current.postMessage({ type: 'DB_MUTATED' });
+      }
     } catch (err) {
       console.error("Failed to update cell value in SQLite", err);
       setSaveStatus('Error saving');

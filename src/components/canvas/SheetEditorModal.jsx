@@ -11,7 +11,8 @@ export default function SheetEditorModal({ fileId, isOpen, onClose }) {
     renameFileColumn, 
     deleteFileColumn, 
     updateFileRowCount, 
-    restoreFileOriginals 
+    restoreFileOriginals,
+    triggerDbRefresh
   } = useProject();
   
   const { execute } = useSqlite();
@@ -61,6 +62,7 @@ export default function SheetEditorModal({ fileId, isOpen, onClose }) {
       const escaped = String(value).replace(/'/g, "''");
       await execute(`UPDATE "${fileId}" SET "${colSanitized}" = '${escaped}' WHERE __row_id = ${rowId}`);
       setSaveStatus('Saved to DB');
+      triggerDbRefresh();
     } catch (err) {
       console.error("Failed to update cell value", err);
       setSaveStatus('Error saving');
@@ -74,6 +76,7 @@ export default function SheetEditorModal({ fileId, isOpen, onClose }) {
       setRows(updated);
       updateFileRowCount(fileId, updated.length);
       setSaveStatus('Row deleted');
+      triggerDbRefresh();
     } catch (err) {
       console.error("Failed to delete row", err);
     }
@@ -91,6 +94,7 @@ export default function SheetEditorModal({ fileId, isOpen, onClose }) {
       setRows(newRows);
       updateFileRowCount(fileId, newRows.length);
       setSaveStatus('Row added');
+      triggerDbRefresh();
     } catch (err) {
       console.error("Failed to add row", err);
     }
@@ -115,6 +119,7 @@ export default function SheetEditorModal({ fileId, isOpen, onClose }) {
       // Reload to ensure cell keys match updated sanitized columns
       await loadData();
       setSaveStatus('Column renamed');
+      triggerDbRefresh();
     } catch (err) {
       console.error("Failed to rename column", err);
       alert("Failed to rename column. Verify if a column with this name already exists.");
@@ -137,6 +142,7 @@ export default function SheetEditorModal({ fileId, isOpen, onClose }) {
       
       await loadData();
       setSaveStatus('Column deleted');
+      triggerDbRefresh();
     } catch (err) {
       console.error("Failed to drop column", err);
     }
@@ -157,6 +163,7 @@ export default function SheetEditorModal({ fileId, isOpen, onClose }) {
       const res = await execute(`SELECT * FROM "${fileId}"`);
       setRows(res || []);
       setSaveStatus('Restored to default');
+      triggerDbRefresh();
     } catch (err) {
       console.error("Failed to restore default sheet table", err);
     } finally {

@@ -58,7 +58,7 @@ function WorkspaceContent() {
     setNodes, setEdges, setFiles, files, inspectorNodeId, setInspectorNodeId, edgeInsertMenu, setEdgeInsertMenu,
     drawingWire, setDrawingWire, cursorPos, setCursorPos,
     startDrawingWire, addWaypointToDrawingWire, completeDrawingWire, cancelDrawingWire,
-    hiddenOutputs
+    hiddenOutputs, triggerDbRefresh
   } = useProject();
   const { execute } = useSqlite();
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
@@ -222,6 +222,8 @@ function WorkspaceContent() {
         if (event.data.files) setFiles(event.data.files);
         if (event.data.nodes) setNodes(event.data.nodes);
         if (event.data.edges) setEdges(event.data.edges);
+      } else if (type === 'DB_MUTATED') {
+        triggerDbRefresh();
       } else if (type === 'EXECUTE_QUERY') {
         try {
           const res = await execute(query);
@@ -238,7 +240,7 @@ function WorkspaceContent() {
     return () => {
       channel.close();
     };
-  }, [nodes, edges, files, execute, setFiles, setNodes, setEdges]);
+  }, [nodes, edges, files, execute, setFiles, setNodes, setEdges, triggerDbRefresh]);
 
   // --- Click-to-Route event triggers on Canvas Pane ---
   const handlePaneMouseMove = useCallback((event) => {
